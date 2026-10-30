@@ -1,0 +1,88 @@
+@{
+    var flashes = Ctx.TakeFlashes();
+    var showTest = (Environment.GetEnvironmentVariable("SHOW_TEST_ACCOUNTS") ?? "1") == "1";
+    var accounts = new[]
+    {
+        ("Koordinatör", "koordinator", "Koordinator123!", "shield"),
+        ("Bölüm Başkanı", "baskan", "Baskan123!", "chart"),
+        ("Öğrenci · ÇAP", "222101001", "Ogrenci123!", "user"),
+        ("Öğrenci · YDP", "222101003", "Ogrenci123!", "user"),
+    };
+}
+<div class="auth">
+  <section class="auth-art" aria-labelledby="auth-h">
+    <div class="art-top">
+      <img class="logo-h only-light" src="/assets/logo-yatay.png" alt="Selçuk Üniversitesi" width="720" height="209">
+      <img class="logo-h only-dark" src="/assets/logo-yatay-beyaz.png" alt="Selçuk Üniversitesi" width="720" height="209">
+      <span class="art-unit">Teknoloji Fakültesi<br>Bilgisayar Mühendisliği Bölümü</span>
+    </div>
+
+    <div class="art-body">
+      <span class="eyebrow">ÇAP / YDP Koordinatörlüğü</span>
+      <h1 id="auth-h">Çift Anadal ve Yandal <em>Öğrenci Takip Sistemi</em></h1>
+      <p class="art-lead">Ders listesi, dönem dersleri, notlar, belgeler ve yönerge kontrolleri tek bir yerde, onaylı ve kayıt altında.</p>
+      <ul class="art-feat">
+        <li>@Nav.Icon("lock")<div><b>Onay ve kilit</b><span>Onaylanan kayıt değiştirilemez</span></div></li>
+        <li>@Nav.Icon("scale")<div><b>Yönerge kontrolleri</b><span>Kurallara göre otomatik uyarı</span></div></li>
+        <li>@Nav.Icon("file")<div><b>Belge arşivi</b><span>Güvenli yükleme, silinmez kayıt</span></div></li>
+        <li>@Nav.Icon("list")<div><b>İşlem kaydı</b><span>Kim, ne zaman, ne yaptı</span></div></li>
+      </ul>
+    </div>
+
+    <div class="art-foot">
+      <a href="https://selcuk.edu.tr/birim/sayfa/6430/cift-anadal-ve-yandal-12428" target="_blank" rel="noopener">Çift Anadal ve Yandal yönergeleri @Nav.Icon("ext")</a>
+      <span>Test ortamı · yalnızca sentetik veri</span>
+    </div>
+  </section>
+
+  <section class="auth-form" aria-labelledby="login-h">
+    <div class="af-inner">
+      <img class="af-seal" src="/assets/muhur.png" alt="" width="64" height="64">
+      <h2 id="login-h">Sisteme giriş</h2>
+      <p class="af-sub">Kurum hesabınızla oturum açın. Öğrenciler için kullanıcı adı öğrenci numarasıdır.</p>
+
+      @foreach (var f in flashes)
+      {
+        <div class="alert @f[0]" role="@(f[0] == "error" ? "alert" : "status")">@f[1]</div>
+      }
+
+      <form method="post" action="/giris" autocomplete="on" novalidate data-login>
+        @H.Raw(H.CsrfField(Ctx))
+        <div class="field">
+          <label for="username">Kullanıcı adı / Öğrenci no <span class="req" aria-hidden="true">*</span></label>
+          <div class="input-ic">@Nav.Icon("user")<input type="text" id="username" name="username" value="@Ctx.Old("username")" required maxlength="60" autocomplete="username" autocapitalize="none" spellcheck="false" autofocus aria-describedby="username-err"></div>
+          <div class="field-err" id="username-err" hidden>Kullanıcı adınızı veya öğrenci numaranızı girin.</div>
+        </div>
+        <div class="field">
+          <label for="password">Şifre <span class="req" aria-hidden="true">*</span></label>
+          <div class="input-ic">
+            @Nav.Icon("lock")
+            <input type="password" id="password" name="password" required maxlength="128" autocomplete="current-password" aria-describedby="password-err">
+            <button type="button" class="pw-toggle" data-pw-toggle aria-controls="password" aria-pressed="false" aria-label="Şifreyi göster">
+              <svg class="ic ic-eye" aria-hidden="true"><use href="#i-eye"></use></svg><svg class="ic ic-eye-off" aria-hidden="true"><use href="#i-eye-off"></use></svg>
+            </button>
+          </div>
+          <div class="field-err" id="password-err" hidden>Şifrenizi girin.</div>
+        </div>
+        <button class="btn btn-lg block" type="submit">Giriş yap @Nav.Icon("arrow")</button>
+      </form>
+      <p class="af-note">@Nav.Icon("info")<span>Hesaplar koordinatör tarafından açılır; öğrenciler kendi kendine kayıt olamaz. 5 hatalı denemeden sonra hesap geçici olarak kilitlenir.</span></p>
+
+      @if (showTest)
+      {
+      <div class="testacc">
+        <div class="ta-h"><span>Test hesapları</span><small>Seçince form doldurulur</small></div>
+        <div class="ta-grid">
+          @foreach (var a in accounts)
+          {
+            <button type="button" class="ta" data-fill-user="@a.Item2" data-fill-pass="@a.Item3">
+              <span class="ta-ic">@Nav.Icon(a.Item4)</span>
+              <span class="ta-tx"><b>@a.Item1</b><code>@a.Item2</code></span>
+            </button>
+          }
+        </div>
+      </div>
+      }
+    </div>
+  </section>
+</div>

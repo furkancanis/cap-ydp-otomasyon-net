@@ -1,0 +1,16 @@
+@{
+    var vals = (Dictionary<string, string>)ViewBag.Vals;
+}
+<div class="page-title"><div><h1>Sistem Ayarları</h1><div class="sub">Yönerge sayısal kuralları için <a href="/koordinator/kurallar">Yönerge Kuralları</a> sayfasını kullanın.</div></div></div>
+<div class="card narrow"><div class="bd">
+  <form method="post" action="/koordinator/ayarlar">@H.Raw(H.CsrfField(Ctx))
+    @foreach (var d in AdminService.SettingDefs)
+    {
+      <div class="mb"><label for="@("s_" + d.Key)">@d.Label</label><input type="text" id="@("s_" + d.Key)" name="@d.Key" value="@(vals.TryGetValue(d.Key, out var v) ? v : "")"></div>
+    }
+    <button class="btn" type="submit">Kaydet</button>
+  </form>
+</div></div>
+<div class="card narrow"><div class="hd"><h3>Sistem bilgisi</h3></div><div class="bd">
+  <dl class="kv"><dt>Sürüm</dt><dd>1.0.0</dd><dt>Veritabanı</dt><dd>PostgreSQL</dd><dt>Platform</dt><dd>@(".NET " + Environment.Version)</dd><dt>Ortam</dt><dd>@Env.EnvironmentName</dd></dl>
+</div></div>

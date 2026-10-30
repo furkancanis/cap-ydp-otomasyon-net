@@ -1,0 +1,72 @@
+@{
+    var s = (Row)ViewBag.S;
+    var eval = (RuleResult)ViewBag.Eval;
+    var requests = (List<Row>)ViewBag.Requests;
+    var unread = (long)ViewBag.Unread;
+    var p = (ProgressInfo)ViewBag.Progress;
+    var current = (Row?)ViewBag.Current;
+    var currentCourses = (List<Row>)ViewBag.CurrentCourses;
+}
+<div class="page-title"><div><h1>Merhaba, @s.S("full_name")</h1>
+  <div class="sub">@L.Get(L.Program, s.S("program_type")) · No: @s.S("student_no") · Kabul: @s.S("adm_year") @s.S("adm_season") · Durum: @H.Badge(s.S("status"))</div></div></div>
+
+@if (requests.Count > 0)
+{
+<div class="alert warn"><strong>Koordinatör sizden belge bekliyor:</strong>
+  @foreach (var r in requests)
+  {
+    <div>• @L.Get(L.DocTypes, r.S("doc_type")) — @r.S("description")@(r.IsNull("due_date") ? "" : " (son tarih " + H.D(r.Dt("due_date")) + ")")@(r.S("state") == "reddedildi" ? " — yüklediğiniz belge reddedildi, yeniden yükleyin" : "")</div>
+  }
+  <a href="/ogrenci/belgeler">Belgelerim sayfasına git →</a></div>
+}
+@if (unread > 0)
+{
+  <div class="alert info">Koordinatörden @unread okunmamış mesajınız var. <a href="/ogrenci/mesajlar">Mesajları aç →</a></div>
+}
+
+<div class="stats">
+  <div class="stat"><div class="v">%@p.Percent</div><div class="l">Ders listesi tamamlanma (AKTS)</div><progress class="pbar" max="100" value="@p.Percent"></progress></div>
+  <div class="stat ok"><div class="v">@p.CompletedCount</div><div class="l">Geçilen / muaf ders (@H.Ects(p.CompletedEcts) AKTS)</div></div>
+  <div class="stat warn"><div class="v">@p.RemainingCount</div><div class="l">Kalan ders (@H.Ects(p.RemainingEcts) AKTS)</div></div>
+  <div class="stat"><div class="v">@H.Num(p.Gpa)</div><div class="l">@L.Get(L.ProgramShort, s.S("program_type")) not ortalaması</div></div>
+  <div class="@(p.PendingTotal > 0 ? "stat warn" : "stat")"><div class="v">@p.PendingTotal</div><div class="l">Onay bekleyen işlemim</div></div>
+</div>
+
+@await Html.PartialAsync("~/Views/Partials/_Quick.cshtml")
+
+<div class="grid2">
+  <div class="card">
+    <div class="hd"><h3>Yönerge kontrolleri</h3>@H.Badge(eval.Level)</div>
+    <div class="bd">@await Html.PartialAsync("~/Views/Partials/_Rules.cshtml", eval)</div>
+  </div>
+  <div>
+    <div class="card">
+      <div class="hd"><h3>@Terms.Label(current) dönemi derslerim</h3><a class="btn sm out" href="/ogrenci/dersler">Ders ekle</a></div>
+      <div class="bd flush">
+      @if (currentCourses.Count == 0)
+      {
+        <div class="empty">Bu dönem için girilmiş ders yok. Üst üste iki dönem ders almayan öğrencinin kaydı silinir.</div>
+      }
+      else
+      {
+        <table class="tbl">
+        @foreach (var c in currentCourses)
+        {
+          <tr><td><code>@c.S("code")</code> @c.S("name")</td><td class="num">@H.Ects(c.Dec("ects")) AKTS</td><td>@H.Badge(c.S("approval_state"))</td></tr>
+        }
+        </table>
+      }
+      </div>
+    </div>
+    <div class="card">
+      <div class="hd"><h3>Onay bekleyen işlemlerim</h3></div>
+      <div class="bd flush"><table class="tbl">
+        <tr><td>Ders listesi talepleri</td><td class="num">@p.Pending["plan"]</td></tr>
+        <tr><td>Dönem ders kayıtları</td><td class="num">@p.Pending["enrollments"]</td></tr>
+        <tr><td>Not girişleri</td><td class="num">@p.Pending["grades"]</td></tr>
+        <tr><td>Belgeler</td><td class="num">@p.Pending["documents"]</td></tr>
+        <tr><td>Katalog dışı ders talepleri</td><td class="num">@p.Pending["course_requests"]</td></tr>
+      </table></div>
+    </div>
+  </div>
+</div>

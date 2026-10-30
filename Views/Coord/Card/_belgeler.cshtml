@@ -1,0 +1,119 @@
+@{
+    var s = (Row)ViewBag.S;
+    var ro = (bool)ViewBag.Ro;
+    var docs = (List<Row>)ViewBag.Docs;
+    var requests = (List<Row>)ViewBag.Requests;
+    var terms = (List<Row>)ViewBag.Terms;
+    var baseUrl = "/koordinator/ogrenci/" + s.L("id");
+    var maxMb = Settings.Get(Ctx, "max_upload_mb", "5");
+    var exts = Settings.Get(Ctx, "allowed_extensions", "pdf,jpg,jpeg,png");
+    var accept = "." + exts.Replace(",", ",.");
+    var supersedeOptions = docs.Select(d => new KeyValuePair<string, string>(d.L("id").ToString(), "#" + d.L("id") + " " + d.S("title") + " (v" + d.I("version_no") + ")"));
+}
+@if (!ro)
+{
+<div class="grid2">
+  <div class="card">
+    <div class="hd"><h3>Belge yükle</h3></div>
+    <div class="bd">
+      <form method="post" action="@(baseUrl + "/belge")" enctype="multipart/form-data">
+        @H.Raw(H.CsrfField(Ctx))
+        <div class="form-grid">
+          <div class="full"><label>Belge türü</label><select name="doc_type" required>@H.Options(L.DocTypes, "yonetim_kurulu_karari")</select></div>
+          <div><label>İlgili dönem</label><select name="term_id">@H.TermOptions(terms, null, true)</select></div>
+          <div><label>Başlık</label><input type="text" name="title" maxlength="200" placeholder="ör. YK Kararı 2026/45"></div>
+          <div class="full"><label>Yenilenen belge (varsa)</label><select name="supersedes_id"><option value="">— Yeni belge —</option>@H.Options(supersedeOptions)</select></div>
+          <div class="full"><label>Dosya (@exts.ToUpperInvariant(), en fazla @maxMb MB)</label><input type="file" name="file" required accept="@accept" data-max-mb="@maxMb"></div>
+        </div>
+        <p class="hint">Koordinatörün yüklediği belgeler onaylı kaydedilir.</p>
+        <button class="btn" type="submit">Yükle</button>
+      </form>
+    </div>
+  </div>
+  <div class="card">
+    <div class="hd"><h3>Öğrenciden ek belge / bilgi iste</h3></div>
+    <div class="bd">
+      <form method="post" action="@(baseUrl + "/istek")">
+        @H.Raw(H.CsrfField(Ctx))
+        <div class="form-grid">
+          <div class="full"><label>Belge türü</label><select name="doc_type" required>@H.Options(L.Without(L.DocTypes, "mesaj_eki", "yonetim_kurulu_karari"), "diger")</select></div>
+          <div class="full"><label>Açıklama</label><textarea name="description" required minlength="5" maxlength="1000" placeholder="ör. Ders kayıt formundaki danışman imzası okunmuyor; lütfen yeniden taratıp yükleyin."></textarea></div>
+          <div><label>Son tarih</label><input type="date" name="due_date"></div>
+        </div>
+        <button class="btn mt" type="submit">İsteği gönder</button>
+      </form>
+    </div>
+  </div>
+</div>
+}
+
+<div class="card">
+  <div class="hd"><h3>Belge istekleri</h3></div>
+  <div class="bd flush">
+  @if (requests.Count == 0)
+  {
+    <div class="empty">İstek yok.</div>
+  }
+  else
+  {
+  <div class="table-wrap"><table class="tbl">
+    <thead><tr><th>Tarih</th><th>Tür</th><th>Açıklama</th><th>Son tarih</th><th>Durum</th><th>Yanıt belgesi</th><th></th></tr></thead>
+    @foreach (var r in requests)
+    {
+      var st = r.S("state");
+      <tr class="@(st == "iptal" ? "dim" : "")">
+        <td class="nowrap small">@H.Dt(r.Dt("created_at"))</td><td class="small">@L.Get(L.DocTypes, r.S("doc_type"))</td><td>@r.S("description")</td>
+        <td class="nowrap">@H.D(r.Dt("due_date"))</td><td>@H.Badge(st)@if (!r.IsNull("response_note")) {<br><small>@r.S("response_note")</small>}</td>
+        <td>@if (r.IsNull("fulfilled_document_id")) {<text>—</text>} else {@H.DocLink(r.L("fulfilled_document_id"), r.Sn("doc_title") ?? "Belge")}</td>
+        <td>@if (!ro && (st is "bekliyor" or "yuklendi" or "reddedildi")) {@H.ReasonPop(Ctx, "İptal", "/koordinator/istek/" + r.L("id") + "/iptal", null, "danger", "İsteği iptal et")}</td>
+      </tr>
+    }
+  </table></div>
+  }
+  </div>
+</div>
+
+<div class="card">
+  <div class="hd"><h3>Doküman arşivi (@docs.Count)</h3><span class="small muted">Belgeler silinmez; reddedilen ve yenilenen sürümler arşivde kalır.</span></div>
+  <div class="bd flush">
+  @if (docs.Count == 0)
+  {
+    <div class="empty">Belge yok.</div>
+  }
+  else
+  {
+  <div class="table-wrap"><table class="tbl">
+    <thead><tr><th>#</th><th>Belge</th><th>Tür</th><th>Dönem</th><th>Sürüm</th><th>Yükleyen</th><th>Durum</th><th></th></tr></thead>
+    @foreach (var d in docs)
+    {
+      var st = d.S("state");
+      <tr class="@((st is "iptal" or "reddedildi") ? "dim" : "")">
+        <td class="small">@d.L("id")</td>
+        <td>@H.DocLink(d.L("id"), d.S("title"))<br><small>@d.S("original_name") · @H.Size(d.L("size_bytes")) · @H.Dt(d.Dt("created_at"))</small></td>
+        <td class="small">@L.Get(L.DocTypes, d.S("doc_type"))</td>
+        <td class="nowrap small">@(d.IsNull("academic_year") ? "—" : d.S("academic_year") + " " + d.S("season"))</td>
+        <td class="small">@("v" + d.I("version_no"))@(d.IsNull("supersedes_id") ? "" : " (#" + d.L("supersedes_id") + " yerine)")</td>
+        <td class="small">@d.S("uploader")<br>@L.Get(L.Role, d.S("uploaded_by_role"))</td>
+        <td>@H.Badge(st)@if (!d.IsNull("reject_reason")) {<br><small>@d.S("reject_reason")</small>}</td>
+        <td>
+          @if (!ro)
+          {
+            <div class="actions">
+            @if (st == "bekliyor")
+            {
+              @H.PostBtn(Ctx, "Onayla", "/koordinator/belge/" + d.L("id") + "/karar", H.KV("karar", "onay"), "ok")
+              @H.ReasonPop(Ctx, "Reddet", "/koordinator/belge/" + d.L("id") + "/karar", H.KV("karar", "ret"), "danger", "Reddet")
+            }
+            else if (st != "iptal")
+            {
+              @H.ReasonPop(Ctx, "İptal", "/koordinator/belge/" + d.L("id") + "/iptal", null, "danger", "Geçersiz say")
+            }
+            </div>
+          }
+        </td>
+      </tr>
+    }
+  </table></div>
+  }
+  </div>
+</div>

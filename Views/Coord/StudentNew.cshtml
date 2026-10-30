@@ -1,0 +1,72 @@
+@{
+    var created = (List<string[]>?)ViewBag.Created;
+    var importErrors = (List<string>?)ViewBag.ImportErrors;
+    var terms = Terms.All(Ctx);
+    var curId = Terms.Current(Ctx)?.L("id");
+    long? selTerm = long.TryParse(Ctx.Old("admission_term_id"), out var st) ? st : curId;
+    var domain = Settings.Get(Ctx, "student_email_domain", "ogr.selcuk.edu.tr");
+}
+<div class="page-title"><div><h1>Öğrenci Ekle</h1><div class="sub">Başvuru değerlendirmesi dekanlıkça yapılır; burada yalnızca kabul edilen öğrenci sisteme eklenir. Öğrenci hesabı otomatik açılır.</div></div></div>
+
+@if (created != null && created.Count > 0)
+{
+<div class="alert success">
+  <strong>Oluşturulan öğrenci hesapları</strong> — geçici şifreler yalnızca bir kez gösterilir; öğrenci ilk girişte değiştirmek zorundadır.
+  <div class="table-wrap mt"><table class="tbl">
+    <thead><tr><th>Kullanıcı adı (öğrenci no)</th><th>Geçici şifre</th><th></th></tr></thead>
+    @foreach (var c in created)
+    {
+      <tr><td><code>@c[0]</code></td><td><span class="pw-box">@c[1]</span></td>
+          <td>@if (c.Length > 2 && c[2] != "") {<a href="/koordinator/ogrenci/@c[2]">Öğrenci kartı →</a>}</td></tr>
+    }
+  </table></div>
+</div>
+}
+
+@if (importErrors != null && importErrors.Count > 0)
+{
+<div class="alert error"><strong>İçe aktarma hataları:</strong>
+  @foreach (var e in importErrors)
+  {
+    <text><br>@e</text>
+  }
+</div>
+}
+
+<div class="grid2">
+<div class="card">
+  <div class="hd"><h3>Tek öğrenci ekle</h3></div>
+  <div class="bd">
+    <form method="post" action="/koordinator/ogrenci/yeni">
+      @H.Raw(H.CsrfField(Ctx))
+      <div class="form-grid">
+        <div><label for="student_no">Öğrenci No *</label><input type="text" id="student_no" name="student_no" value="@Ctx.Old("student_no")" required pattern="\d{6,15}" maxlength="15"></div>
+        <div><label for="full_name">Ad Soyad *</label><input type="text" id="full_name" name="full_name" value="@Ctx.Old("full_name")" required maxlength="150"></div>
+        <div class="full"><label for="email">Okul E-postası *</label><input type="email" id="email" name="email" value="@Ctx.Old("email")" required maxlength="150" placeholder="ad.soyad@@@domain"></div>
+        <div><label for="program_type">Program *</label><select id="program_type" name="program_type" required>@H.Options(L.Program, Ctx.Old("program_type"), true)</select></div>
+        <div><label for="admission_term_id">Kabul Dönemi *</label><select id="admission_term_id" name="admission_term_id" required>@H.TermOptions(terms, selTerm, true)</select></div>
+        <div><label for="main_faculty">Ana Dal Fakültesi</label><input type="text" id="main_faculty" name="main_faculty" value="@Ctx.Old("main_faculty", "Teknoloji Fakültesi")" maxlength="150"></div>
+        <div><label for="main_department">Ana Dal Bölümü</label><input type="text" id="main_department" name="main_department" value="@Ctx.Old("main_department")" maxlength="150"></div>
+        <div class="full"><label class="check"><input type="checkbox" name="add_protocol" value="1" checked> ÇAP ise protokol şablonundaki dersleri ders listesine ekle</label></div>
+      </div>
+      <button class="btn mt" type="submit">Öğrenciyi Ekle ve Hesap Oluştur</button>
+    </form>
+  </div>
+</div>
+<div class="card">
+  <div class="hd"><h3>CSV ile toplu içe aktarma</h3></div>
+  <div class="bd">
+    <p class="small">Veri girişi tek noktadan geçer: form, CSV ve ileride eklenecek OBİS bağlantısı aynı servis fonksiyonunu kullanır. Benzersiz anahtar <strong>öğrenci numarasıdır</strong>; mevcut numaralar güncellenir.</p>
+    <p class="small">İlk satır başlık olmalıdır (ayırıcı <code>;</code> veya <code>,</code>):</p>
+    <pre class="small"><code>student_no;full_name;email;program_type;admission_term;main_faculty;main_department
+232101010;Deneme Öğrenci;deneme.ogrenci@@ogr.selcuk.edu.tr;CAP;2026-2027 Güz;Teknoloji Fakültesi;Elektrik-Elektronik Müh.</code></pre>
+    <form method="post" action="/koordinator/ogrenci/ice-aktar" enctype="multipart/form-data">
+      @H.Raw(H.CsrfField(Ctx))
+      <label for="csv">CSV dosyası (en fazla 2 MB)</label>
+      <input type="file" id="csv" name="csv" accept=".csv,text/csv" required>
+      <button class="btn mt" type="submit">İçe Aktar</button>
+    </form>
+  </div>
+</div>
+</div>
+@{ Ctx.Remove("_old"); }

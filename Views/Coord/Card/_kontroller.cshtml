@@ -1,0 +1,28 @@
+@{
+    var checks = (List<Row>)ViewBag.Checks;
+}
+<div class="alert info">Her kontrol, o anda yürürlükte olan kural sürümüyle birlikte değiştirilemez şekilde saklanır. Yönerge değişse de geçmiş kontroller yeniden yazılmaz.</div>
+<div class="card"><div class="bd flush">
+@if (checks.Count == 0)
+{
+  <div class="empty">Kayıtlı kontrol yok.</div>
+}
+else
+{
+<div class="table-wrap"><table class="tbl"><thead><tr><th>Zaman</th><th>Tetikleyen</th><th>Kural sürümü</th><th>Sonuç</th><th>Uyarılar</th></tr></thead>
+@foreach (var c in checks)
+{
+  var w = Rules.ItemsOf(c.S("results")).Where(i => i.Level is "uyari" or "kritik").ToList();
+  <tr><td class="nowrap small">@H.Dt(c.Dt("created_at"))</td><td class="small">@c.S("trigger_event")<br>@(c.Sn("runner") ?? "Sistem")</td>
+  <td class="small">@("v" + c.I("version_no")) · @c.S("rs_title")</td><td>@H.Badge(c.S("summary_level"))</td>
+  <td class="small">
+    @foreach (var i in w)
+    {
+      <div>@H.Badge(i.Level) @i.Title: @i.Msg</div>
+    }
+    @if (w.Count == 0) {<text>—</text>}
+  </td></tr>
+}
+</table></div>
+}
+</div></div>

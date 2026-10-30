@@ -1,0 +1,20 @@
+@model RuleResult
+@if (Model.Items.Count == 0)
+{
+  <p class="muted">Kontrol edilecek kural bulunamadı.</p>
+}
+@foreach (var it in Model.Items)
+{
+  <div class="rule @it.Level">
+    <div>@H.Badge(it.Level)</div>
+    <div>
+      <div class="t">@it.Title</div>
+      <div>@it.Msg</div>
+      @if (!string.IsNullOrEmpty(it.Ref))
+      {
+        <div class="ref">Dayanak: @it.Ref</div>
+      }
+    </div>
+  </div>
+}
+<p class="small muted mb0">Kural sürümü: @Model.RuleSetTitle (@("v" + Model.VersionNo)). Yalnızca onaylı kayıtlar hesaba katılır. Uyarılar karar değildir; karar koordinatöre aittir.</p>

@@ -1,0 +1,151 @@
+@{
+    var u = Ctx.User;
+    var path = Context.Request.Path.Value ?? "/";
+    var notif = u != null ? Notify.UnreadCount(Ctx, u.Id) : 0;
+    var nav = Nav.Build(Ctx);
+    var home = u != null ? Nav.Home(u) : "/";
+    bool IsOn(string href, bool exact) => exact ? path == href : (path == href || path.StartsWith(href + "/"));
+    string Cur(bool on) => on ? "page" : "false";
+    var flashes = Ctx.TakeFlashes();
+    var title = ViewData["Title"] as string ?? "";
+    var isLogin = u == null && (path == "/giris" || path == "/");
+    var isDash = u != null && path == home;
+    var bodyClass = u == null ? (isLogin ? "anon is-login" : "anon") : "app role-" + u.Role + (isDash ? " is-dash" : "");
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1c458b">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<title>@(title == "" ? "" : title + " · ")ÇAP/YDP Takip Sistemi · Selçuk Üniversitesi</title>
+<link rel="icon" href="/assets/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<link rel="stylesheet" href="@H.Asset(Env.WebRootPath, "style.css")">
+<script src="@H.Asset(Env.WebRootPath, "theme.js")"></script>
+</head>
+<body class="@bodyClass">
+@await Html.PartialAsync("~/Views/Shared/_Icons.cshtml")
+<a class="skip" href="#icerik">İçeriğe atla</a>
+
+@if (u != null)
+{
+<aside class="sb" id="kenar" aria-label="Yan menü">
+  <div class="sb-brand">
+    <a class="brand" href="@home" aria-label="Panele dön">
+      <img class="seal" src="/assets/muhur.png" alt="" width="40" height="40">
+      <span class="brand-t"><span class="t1">SELÇUK ÜNİVERSİTESİ</span><span class="t2">ÇAP · YDP Takip Sistemi</span></span>
+    </a>
+    <button class="sb-close" type="button" data-sb-close aria-label="Menüyü kapat">@Nav.Icon("x")</button>
+  </div>
+
+  <nav class="sb-nav" aria-label="Ana menü">
+    <a class="sb-link @(path == home ? "on" : "")" href="@home" aria-current="@Cur(path == home)" title="Panel">
+      @Nav.Icon("home")<span class="lbl">Panel</span>
+    </a>
+    @foreach (var g in nav)
+    {
+      <div class="sb-group">@g.Name</div>
+      foreach (var it in g.Items)
+      {
+        var on = IsOn(it.Href, it.Exact);
+        <a class="sb-link @(on ? "on" : "")" href="@it.Href" aria-current="@Cur(on)" title="@it.Label">
+          @Nav.Icon(it.Icon)<span class="lbl">@it.Label</span>
+          @if (it.Count > 0) {<span class="cnt" aria-label="@it.Count bekleyen">@it.Count</span>}
+        </a>
+      }
+    }
+    <div class="sb-group">Hesabım</div>
+    <a class="sb-link @(IsOn("/bildirimler", false) ? "on" : "")" href="/bildirimler" aria-current="@Cur(IsOn("/bildirimler", false))" title="Bildirimler">
+      @Nav.Icon("bell")<span class="lbl">Bildirimler</span>@if (notif > 0) {<span class="cnt" aria-label="@notif okunmamış">@notif</span>}
+    </a>
+    <a class="sb-link @(IsOn("/sifre", false) ? "on" : "")" href="/sifre" aria-current="@Cur(IsOn("/sifre", false))" title="Şifre Değiştir">
+      @Nav.Icon("lock")<span class="lbl">Şifre Değiştir</span>
+    </a>
+  </nav>
+
+  <div class="sb-foot">
+    <span class="env-pill" title="Bu ortamdaki tüm veriler sentetiktir">@Nav.Icon("info")<span class="lbl">Test ortamı · sentetik veri</span></span>
+  </div>
+</aside>
+<div class="scrim" data-sb-close hidden></div>
+
+<div class="shell">
+  <header class="tb">
+    <button class="icon-btn sb-toggle" type="button" data-sb-toggle aria-controls="kenar" aria-expanded="false" aria-label="Menüyü aç / daralt">@Nav.Icon("sidebar")</button>
+    <a class="tb-brand" href="@home" aria-label="Panel"><img class="seal" src="/assets/muhur.png" alt="" width="34" height="34"></a>
+    <nav class="crumbs" aria-label="Konum">
+      <a href="@home">@L.Get(L.Role, u.Role)</a>
+      @if (title != "" && !isDash) { @Nav.Icon("chev-r", "ic sep")<span aria-current="page">@title</span> }
+    </nav>
+    <div class="tb-r">
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Koyu / açık tema">
+        <svg class="ic ic-moon" aria-hidden="true"><use href="#i-moon"></use></svg><svg class="ic ic-sun" aria-hidden="true"><use href="#i-sun"></use></svg>
+      </button>
+      <a class="icon-btn" href="/bildirimler" aria-label="Bildirimler@(notif > 0 ? ", " + notif + " okunmamış" : "")">
+        @Nav.Icon("bell")@if (notif > 0) {<span class="dot-cnt" aria-hidden="true">@(notif > 99 ? "99+" : notif.ToString())</span>}
+      </a>
+      <div class="menu">
+        <button class="user-btn" type="button" aria-expanded="false" aria-haspopup="true" data-menu>
+          <span class="av" aria-hidden="true">@H.Initials(u.FullName)</span>
+          <span class="who"><b>@u.FullName</b><small>@L.Get(L.Role, u.Role)</small></span>
+          @Nav.Icon("chev", "ic chev")
+        </button>
+        <div class="menu-pop" role="menu">
+          <div class="menu-head"><b>@u.FullName</b><small>@u.Username · @L.Get(L.Role, u.Role)</small></div>
+          <a role="menuitem" href="/bildirimler">@Nav.Icon("bell")<span>Bildirimler</span>@if (notif > 0) {<span class="cnt">@notif</span>}</a>
+          <a role="menuitem" href="/sifre">@Nav.Icon("lock")<span>Şifre Değiştir</span></a>
+          <form method="post" action="/cikis">@H.Raw(H.CsrfField(Ctx))<button role="menuitem" type="submit" class="danger-item">@Nav.Icon("logout")<span>Güvenli Çıkış</span></button></form>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="icerik" class="main" tabindex="-1">
+    @RenderBody()
+  </main>
+
+  <footer class="foot">
+    <span>© @Clock.Now().Year Selçuk Üniversitesi · Teknoloji Fakültesi · Bilgisayar Mühendisliği Bölümü</span>
+    <span class="foot-links"><a href="https://selcuk.edu.tr/birim/sayfa/6430/cift-anadal-ve-yandal-12428" target="_blank" rel="noopener">ÇAP / Yandal yönergeleri @Nav.Icon("ext")</a><span>v2.0</span></span>
+  </footer>
+</div>
+}
+else
+{
+  if (isLogin)
+  {
+    <main id="icerik" tabindex="-1">@RenderBody()</main>
+  }
+  else
+  {
+  <header class="anon-hdr">
+    <a class="logo-h-link" href="/" aria-label="Selçuk Üniversitesi — giriş sayfası">
+      <img class="logo-h only-light" src="/assets/logo-yatay.png" alt="Selçuk Üniversitesi" width="720" height="209">
+      <img class="logo-h only-dark" src="/assets/logo-yatay-beyaz.png" alt="Selçuk Üniversitesi" width="720" height="209">
+    </a>
+  </header>
+  <main id="icerik" class="main narrow-main" tabindex="-1">@RenderBody()</main>
+  }
+}
+
+@if (flashes.Count > 0)
+{
+<div class="toasts" aria-live="polite">
+  @foreach (var f in flashes)
+  {
+    var ic = f[0] switch { "success" => "check", "error" => "alert", "warn" => "alert", _ => "info" };
+    <div class="toast @f[0]" role="@(f[0] == "error" ? "alert" : "status")">
+      <span class="t-ic">@Nav.Icon(ic)</span><div class="t-tx">@f[1]</div>
+      <button type="button" class="t-x" aria-label="Bildirimi kapat" data-toast-close>@Nav.Icon("x")</button>
+    </div>
+  }
+</div>
+}
+<script src="@H.Asset(Env.WebRootPath, "app.js")"></script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+@{
+    var sets = (List<Row>)ViewBag.Sets;
+    var active = (Dictionary<string, RuleSet>)ViewBag.Active;
+    var edit = (string)ViewBag.Edit;
+}
+<div class="page-title"><div><h1>Yönerge Kuralları</h1><div class="sub">Sayısal kurallar yazılıma gömülü değildir; buradan sürümlü olarak yönetilir. Yeni sürüm eklendiğinde eski sürümler ve geçmiş kontroller korunur.</div></div></div>
+
+@if (Rules.ParamDefs.ContainsKey(edit) && Ctx.IsCoordinator)
+{
+  var act = active[edit];
+<div class="card">
+  <div class="hd"><h3>Yeni kural sürümü — @L.Program[edit]</h3><a class="btn sm out" href="/koordinator/kurallar">Vazgeç</a></div>
+  <div class="bd">
+    <form method="post" action="/koordinator/kurallar">@H.Raw(H.CsrfField(Ctx))
+      <input type="hidden" name="program_type" value="@edit">
+      <div class="form-grid">
+        <div class="span2"><label>Sürüm başlığı (yönerge tarihi / senato kararı)</label><input type="text" name="title" required maxlength="200" placeholder="ör. ÇAP Yönergesi — Senato 15/09/2027, 2027-55"></div>
+        <div><label>Yürürlük tarihi</label><input type="date" name="valid_from" required value="@Clock.Today().ToString("yyyy-MM-dd")"></div>
+      </div>
+      <div class="table-wrap mt"><table class="tbl">
+        <thead><tr><th>Kural</th><th>Dayanak</th><th>Değer</th></tr></thead>
+        @foreach (var d in Rules.ParamDefs[edit])
+        {
+          var sv = act.Params.Display(d.Key);
+          <tr><td><label for="@("p_" + d.Key)">@d.Label</label><small class="muted">@d.Key</small></td><td class="small">@d.Ref</td>
+          <td>@if (d.Kind == "json") {<textarea id="@("p_" + d.Key)" name="@("p[" + d.Key + "]")" required>@sv</textarea>} else {<input type="text" id="@("p_" + d.Key)" name="@("p[" + d.Key + "]")" value="@sv" required>}</td></tr>
+        }
+      </table></div>
+      <div class="form-grid mt">
+        <div class="full"><label>Değişiklik notu</label><textarea name="note" maxlength="1000"></textarea></div>
+        <div class="full"><label class="check"><input type="checkbox" name="activate" value="1" checked> Kaydedince yürürlüğe al (önceki sürüm pasif olur ama silinmez)</label></div>
+      </div>
+      <button class="btn mt" type="submit">Yeni sürümü kaydet</button>
+    </form>
+  </div>
+</div>
+}
+
+<div class="grid2">
+@foreach (var t in new[] { "CAP", "YDP" })
+{
+  var a = active[t];
+  <div class="card">
+    <div class="hd"><h3>@L.Program[t] — yürürlükteki kurallar</h3>
+      @if (Ctx.IsCoordinator) {<a class="btn sm" href="/koordinator/kurallar?yeni=@t">Yeni sürüm oluştur</a>}</div>
+    <div class="bd flush">
+      <div class="small muted pad">@a.Title · @("v" + a.VersionNo)</div>
+      <table class="tbl">
+        @foreach (var d in Rules.ParamDefs[t])
+        {
+          <tr><td>@d.Label<br><small class="muted">@d.Ref</small></td><td class="right"><strong>@a.Params.Display(d.Key)</strong></td></tr>
+        }
+      </table>
+    </div>
+  </div>
+}
+</div>
+
+<div class="card">
+  <div class="hd"><h3>Sürüm geçmişi</h3></div>
+  <div class="bd flush"><div class="table-wrap"><table class="tbl">
+    <thead><tr><th>Program</th><th>Sürüm</th><th>Başlık</th><th>Yürürlük</th><th>Oluşturan</th><th class="num">Kullanılan kontrol</th><th>Durum</th><th></th></tr></thead>
+    @foreach (var r in sets)
+    {
+      var isActive = r.B("is_active");
+      var prm = System.Text.Json.Nodes.JsonNode.Parse(r.S("params")) as System.Text.Json.Nodes.JsonObject;
+      <tr class="@(isActive ? "" : "dim")">
+        <td>@L.Get(L.ProgramShort, r.S("program_type"))</td><td>@("v" + r.I("version_no"))</td>
+        <td>@r.S("title")@if (!r.IsNull("note")) {<br><small>@r.S("note")</small>}
+          <details class="block"><summary>Değerleri göster</summary><div class="diff">@if (prm != null) { foreach (var kv in prm) { <text>@kv.Key: @(kv.Value?.ToJsonString() ?? "")&#10;</text> } }</div></details></td>
+        <td class="nowrap">@H.D(r.Dt("valid_from"))</td><td class="small">@(r.Sn("author") ?? "Sistem")<br>@H.Dt(r.Dt("created_at"))</td>
+        <td class="num">@r.L("used")</td>
+        <td>@(isActive ? H.Badge("aktif", "Yürürlükte") : H.Badge("iptal", "Arşiv"))</td>
+        <td>@if (Ctx.IsCoordinator && !isActive) {@H.PostBtn(Ctx, "Yürürlüğe al", "/koordinator/kurallar/" + r.L("id") + "/aktif", null, "out", "Bu sürüm yürürlüğe alınsın mı?")}</td>
+      </tr>
+    }
+  </table></div></div>
+</div>

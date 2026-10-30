@@ -1,0 +1,17 @@
+# Render Blueprint — "New > Blueprint" ile bu depoyu seçin. Veritabanı olarak Neon (ücretsiz) önerilir.
+services:
+  - type: web
+    name: cap-ydp-takip
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /saglik
+    envVars:
+      - key: DATABASE_URL
+        sync: false        # Neon bağlantı adresini Render panelinden girin
+      - key: TRUST_PROXY
+        value: "1"
+      - key: SEED_DEMO
+        value: "1"
+      - key: SHOW_TEST_ACCOUNTS
+        value: "1"

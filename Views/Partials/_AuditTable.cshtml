@@ -1,0 +1,51 @@
+@model AuditTableModel
+@functions {
+    static string Val(System.Text.Json.JsonElement v) => v.ValueKind switch
+    {
+        System.Text.Json.JsonValueKind.String => v.GetString() ?? "",
+        System.Text.Json.JsonValueKind.Null => "NULL",
+        _ => v.GetRawText()
+    };
+}
+@if (Model.Logs.Count == 0)
+{
+  <div class="empty">Kayıt yok.</div>
+}
+else
+{
+<div class="table-wrap"><table class="tbl">
+  <thead><tr><th>Zaman</th><th>Kullanıcı</th><th>İşlem</th>@if (Model.ShowStudent) {<th>Öğrenci</th>}<th>Eski değer → Yeni değer</th><th>Gerekçe</th><th>IP</th></tr></thead>
+  <tbody>
+  @foreach (var l in Model.Logs)
+  {
+    var oldD = CapYdp.Infrastructure.Json.Decode<Dictionary<string, System.Text.Json.JsonElement>>(l.Sn("old_values"));
+    var newD = CapYdp.Infrastructure.Json.Decode<Dictionary<string, System.Text.Json.JsonElement>>(l.Sn("new_values"));
+    <tr>
+      <td class="nowrap">@H.Dt(l.Dt("created_at"))</td>
+      <td class="nowrap">@l.S("username")<br><small>@L.Get(L.Role, l.S("user_role"))</small></td>
+      <td>@L.Get(Audit.ActionLabels, l.S("action"))<br><small>@l.S("entity_type")@(l.IsNull("entity_id") ? "" : " #" + l.L("entity_id"))</small></td>
+      @if (Model.ShowStudent)
+      {
+        <td>@if (!l.IsNull("student_id")) {<a href="/koordinator/ogrenci/@l.L("student_id")">@(l.IsNull("student_name") ? "#" + l.L("student_id") : l.S("student_name"))</a>}</td>
+      }
+      <td><div class="diff">@if (oldD != null)
+        {
+          foreach (var kv in oldD)
+          {
+            <text><span class="o">− @kv.Key: @Val(kv.Value)</span>&#10;</text>
+          }
+        }
+        @if (newD != null)
+        {
+          foreach (var kv in newD)
+          {
+            <text><span class="n">+ @kv.Key: @Val(kv.Value)</span>&#10;</text>
+          }
+        }</div></td>
+      <td>@l.S("reason")</td>
+      <td class="nowrap small">@l.S("ip_address")</td>
+    </tr>
+  }
+  </tbody>
+</table></div>
+}

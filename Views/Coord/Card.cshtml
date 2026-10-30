@@ -1,0 +1,57 @@
+@{
+    var s = (Row)ViewBag.S;
+    var progress = (ProgressInfo)ViewBag.Progress;
+    var tab = (string)ViewBag.Tab;
+    var ro = (bool)ViewBag.Ro;
+    var unreadMsgs = (long)ViewBag.UnreadMsgs;
+    var baseUrl = "/koordinator/ogrenci/" + s.L("id");
+    var tabCounts = new Dictionary<string, long>
+    {
+        ["liste"] = progress.Pending["plan"], ["dersler"] = progress.Pending["enrollments"], ["notlar"] = progress.Pending["grades"],
+        ["belgeler"] = progress.Pending["documents"], ["mesajlar"] = unreadMsgs,
+    };
+}
+<div class="card hero-card">
+  <div class="bd">
+    <div class="profile">
+      <div class="avatar">@H.Initials(s.S("full_name"))</div>
+      <div>
+        <h1 class="mb0">@s.S("full_name") @H.Badge("x", L.Get(L.ProgramShort, s.S("program_type"))) @H.Badge(s.S("status"))</h1>
+        <div class="meta">
+          <span>No: <strong>@s.S("student_no")</strong></span>
+          <span>@s.S("email")</span>
+          <span>Ana dal: @(s.IsNull("main_department") ? "—" : s.S("main_department"))@(s.IsNull("main_faculty") ? "" : " (" + s.S("main_faculty") + ")")</span>
+          <span>Kabul: @s.S("adm_year") @s.S("adm_season")</span>
+          <span>Kaynak: @s.S("data_source")</span>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <div class="actions">
+        @if (ro)
+        {
+          <span class="badge b-gray">Salt okunur görünüm</span>
+        }
+        else
+        {
+          @H.PostBtn(Ctx, "Kural kontrolü çalıştır", baseUrl + "/kontrol", null, "out")
+        }
+      </div>
+    </div>
+    <div class="grid3 mt">
+      <div><div class="small muted">Ders listesi ilerlemesi (AKTS)</div>
+        <progress class="pbar" max="100" value="@progress.Percent">@progress.Percent%</progress>
+        <div class="small">@H.Ects(progress.PlanEcts - progress.RemainingEcts) / @H.Ects(progress.PlanEcts) AKTS · %@progress.Percent</div></div>
+      <div><div class="small muted">Program not ortalaması</div><div><strong>@H.Num(progress.Gpa)</strong> <small>(@progress.CompletedCount ders tamamlandı, @progress.RemainingCount ders kaldı)</small></div></div>
+      <div><div class="small muted">Onay bekleyen</div><div><strong>@progress.PendingTotal</strong> işlem</div></div>
+    </div>
+  </div>
+</div>
+
+<nav class="tabs" aria-label="Öğrenci kartı sekmeleri">
+  @foreach (var kv in CapYdp.Controllers.CoordinatorController.Tabs)
+  {
+    <a href="@(baseUrl + "?tab=" + kv.Key)" class="@(tab == kv.Key ? "on" : "")">@(kv.Value)@if (tabCounts.TryGetValue(kv.Key, out var cnt) && cnt > 0) {<span class="n">@cnt</span>}</a>
+  }
+</nav>
+
+@await Html.PartialAsync("~/Views/Coord/Card/_" + tab + ".cshtml")

@@ -1,0 +1,52 @@
+@{
+    var rows = (List<Row>)ViewBag.Rows;
+    var q = (string)ViewBag.Q;
+    var type = (string)ViewBag.Type;
+    var status = (string)ViewBag.Status;
+}
+<div class="page-title">
+  <div><h1>ÇAP / YDP Öğrencileri</h1><div class="sub">@rows.Count kayıt</div></div>
+  <div class="actions">
+    <a class="btn out" href="/koordinator/ogrenciler/disa-aktar">CSV olarak dışa aktar</a>
+    @if (Ctx.IsCoordinator)
+    {
+      <a class="btn" href="/koordinator/ogrenci/yeni">+ Öğrenci Ekle</a>
+    }
+  </div>
+</div>
+<div class="card"><div class="bd">
+  <form method="get" action="/koordinator/ogrenciler" class="form-row">
+    <div><label for="q">Ara (ad, numara, e-posta)</label><input type="search" id="q" name="q" value="@q"></div>
+    <div><label for="tur">Program</label><select id="tur" name="tur">@H.Options(L.Program, type, true)</select></div>
+    <div><label for="durum">Durum</label><select id="durum" name="durum">@H.Options(L.StudentStatus, status, true)</select></div>
+    <div class="w-auto"><button class="btn" type="submit">Filtrele</button></div>
+  </form>
+</div></div>
+<div class="card"><div class="bd flush">
+@if (rows.Count == 0)
+{
+  <div class="empty">Kayıt bulunamadı.</div>
+}
+else
+{
+<div class="table-wrap"><table class="tbl">
+  <thead><tr><th>Öğrenci No</th><th>Ad Soyad</th><th>Program</th><th>Ana Dal</th><th>Kabul Dönemi</th><th class="num">GANO</th><th>Durum</th><th>Son kontrol</th><th class="num">Bekleyen</th></tr></thead>
+  <tbody>
+  @foreach (var r in rows)
+  {
+    <tr>
+      <td><code>@r.S("student_no")</code></td>
+      <td><a href="/koordinator/ogrenci/@r.L("id")"><strong>@r.S("full_name")</strong></a><br><small>@r.S("email")</small></td>
+      <td>@H.Badge("x", L.Get(L.ProgramShort, r.S("program_type")))</td>
+      <td class="small">@(r.IsNull("main_department") ? "—" : r.S("main_department"))</td>
+      <td class="nowrap">@r.S("academic_year") @r.S("season")</td>
+      <td class="num">@H.Num(r.DecN("gano"))</td>
+      <td>@H.Badge(r.S("status"))</td>
+      <td>@if (r.IsNull("level")) {<span class="muted">—</span>} else {@H.Badge(r.S("level"))}</td>
+      <td class="num">@if (r.L("pending") > 0) {<span class="badge b-amber">@r.L("pending")</span>} else {<text>0</text>}</td>
+    </tr>
+  }
+  </tbody>
+</table></div>
+}
+</div></div>

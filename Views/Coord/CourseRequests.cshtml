@@ -1,0 +1,48 @@
+@{
+    var rows = (List<Row>)ViewBag.Rows;
+}
+<div class="page-title"><div><h1>Katalog Dışı Ders Talepleri</h1><div class="sub">Öğrenci katalogda bulunmayan bir ders için talep gönderir; kabul edilirse ders kataloğa eklenir.</div></div></div>
+<div class="card"><div class="bd flush">
+@if (rows.Count == 0)
+{
+  <div class="empty">Talep yok.</div>
+}
+else
+{
+<div class="table-wrap"><table class="tbl"><thead><tr><th>Tarih</th><th>Öğrenci</th><th>Talep edilen ders</th><th>Açıklama</th><th>Durum</th><th></th></tr></thead>
+@foreach (var r in rows)
+{
+  var pending = r.S("state") == "bekliyor";
+  var action = "/koordinator/ders-talepleri/" + r.L("id");
+  <tr class="@(pending ? "" : "dim")">
+    <td class="nowrap small">@H.Dt(r.Dt("created_at"))</td>
+    <td><a href="/koordinator/ogrenci/@r.L("student_id")">@r.S("full_name")</a><br><small>@r.S("student_no")</small></td>
+    <td><code>@(r.Sn("course_code") ?? "—")</code> @r.S("course_name")</td><td class="small">@r.S("explanation")</td>
+    <td>@H.Badge(r.S("state"))@if (!r.IsNull("response")) {<br><small>@r.S("response")</small>}@if (!r.IsNull("created_code")) {<br><small>Katalog: @r.S("created_code")</small>}</td>
+    <td>
+      @if (Ctx.IsCoordinator && pending)
+      {
+      <div class="actions">
+        <details class="pop"><summary class="btn sm ok">Kataloğa ekle</summary><div class="pop-body">
+          <form method="post" action="@action">@H.Raw(H.CsrfField(Ctx))<input type="hidden" name="karar" value="kabul">
+            <label>Ders kodu</label><input type="text" name="code" value="@r.S("course_code")" required maxlength="20">
+            <label>Ders adı</label><input type="text" name="name" value="@r.S("course_name")" required maxlength="200">
+            <label>AKTS</label><input type="text" name="ects" required>
+            <label>Yarıyıl</label><input type="number" name="semester" min="1" max="12">
+            <label>Kategori</label><select name="category">@H.Options(L.Category, "teknik_secmeli")</select>
+            <label>Kapsam</label><select name="program_scope">@H.Options(L.Scope, "HER_IKISI")</select>
+            <label>Öğrenciye not</label><input type="text" name="response" maxlength="500">
+            <button class="btn sm ok" type="submit">Kabul et ve ekle</button>
+          </form></div></details>
+        <details class="pop"><summary class="btn sm danger">Reddet</summary><div class="pop-body">
+          <form method="post" action="@action">@H.Raw(H.CsrfField(Ctx))<input type="hidden" name="karar" value="ret">
+            <label>Gerekçe</label><textarea name="response" required minlength="5" maxlength="500"></textarea>
+            <button class="btn sm danger" type="submit">Reddet</button></form></div></details>
+      </div>
+      }
+    </td>
+  </tr>
+}
+</table></div>
+}
+</div></div>

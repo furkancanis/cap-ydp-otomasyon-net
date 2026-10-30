@@ -1,0 +1,39 @@
+@{
+    var s = (Row)ViewBag.S;
+    var ro = (bool)ViewBag.Ro;
+    var ganos = (List<Row>)ViewBag.Ganos;
+    var terms = (List<Row>)ViewBag.Terms;
+    var baseUrl = "/koordinator/ogrenci/" + s.L("id");
+}
+<div class="alert info">Not ortalaması eşiklerinin dayanağı olan ana dal genel ağırlıklı not ortalamasını (GANO) yalnızca koordinatör girer. Değerin kaynağı kayda yazılır. Yanlış kayıt silinmez, iptal edilir.</div>
+@if (!ro)
+{
+<div class="card"><div class="hd"><h3>GANO kaydı ekle</h3></div><div class="bd">
+  <form method="post" action="@(baseUrl + "/gano")" class="form-row">@H.Raw(H.CsrfField(Ctx))
+    <div><label>Dönem sonu</label><select name="term_id" required>@H.TermOptions(terms, Terms.Current(Ctx)?.L("id"))</select></div>
+    <div><label>GANO (4'lük)</label><input type="text" name="gano" required inputmode="decimal" pattern="[0-4]([.,]\d{1,2})?" placeholder="2,85"></div>
+    <div><label>Kaynak *</label><input type="text" name="source" required maxlength="100" list="gano-src" placeholder="Ana dal transkripti"></div>
+    <div><label>Not</label><input type="text" name="note" maxlength="500"></div>
+    <div class="w-auto"><button class="btn" type="submit">Kaydet</button></div>
+    <datalist id="gano-src"><option value="Ana dal transkripti"><option value="Öğrenci İşleri yazısı"><option value="OBİS ekran çıktısı"><option value="Dekanlık kabul yazısı"></datalist>
+  </form>
+</div></div>
+}
+<div class="card"><div class="bd flush">
+@if (ganos.Count == 0)
+{
+  <div class="empty">GANO kaydı yok.</div>
+}
+else
+{
+<table class="tbl"><thead><tr><th>Dönem</th><th class="num">GANO</th><th>Kaynak</th><th>Not</th><th>Giren</th><th>Tarih</th><th>Durum</th><th></th></tr></thead>
+@foreach (var g in ganos)
+{
+  <tr class="@(g.S("state") == "iptal" ? "dim" : "")"><td>@g.S("academic_year") @g.S("season")</td><td class="num"><strong>@H.Num(g.Dec("gano"))</strong></td>
+  <td>@g.S("source")</td><td class="small">@g.S("note")</td><td class="small">@g.S("author")</td><td class="small nowrap">@H.Dt(g.Dt("created_at"))</td>
+  <td>@H.Badge(g.S("state"))@if (!g.IsNull("cancel_reason")) {<br><small>@g.S("cancel_reason")</small>}</td>
+  <td>@if (!ro && g.S("state") == "gecerli") {@H.ReasonPop(Ctx, "İptal", "/koordinator/gano/" + g.L("id") + "/iptal", null, "danger", "İptal et")}</td></tr>
+}
+</table>
+}
+</div></div>

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>CapYdp</RootNamespace>
+    <AssemblyName>CapYdp</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS8619;CS8620</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <PackageReference Include="Npgsql" Version="8.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Data\schema.sql" CopyToOutputDirectory="PreserveNewest" />
+    <Content Remove="tests\**" />
+    <None Remove="tests\**" />
+    <Compile Remove="tests\**" />
+  </ItemGroup>
+
+</Project>

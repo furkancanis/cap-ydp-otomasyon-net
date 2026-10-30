@@ -1,0 +1,2 @@
+Bu dosyayı GitHub'a yüklemeden önce .github\workflows\build-test.yml konumuna taşıyın
+(GitHub Actions her push'ta projeyi derleyip testleri çalıştırır).

@@ -1,0 +1,45 @@
+# Her push'ta: derle, PostgreSQL ile çalıştır, tüm iş akışı ve güvenlik testlerini koş
+name: build-and-test
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cap
+          POSTGRES_PASSWORD: cap
+          POSTGRES_DB: capdb
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cap" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Derle
+        run: dotnet build CapYdp.csproj -c Release
+      - name: Uygulamayı başlat
+        env:
+          DATABASE_URL: postgres://cap:cap@localhost:5432/capdb
+          ASPNETCORE_URLS: http://127.0.0.1:8080
+          ASPNETCORE_ENVIRONMENT: Production
+        run: |
+          nohup dotnet bin/Release/net8.0/CapYdp.dll > app.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8080/saglik && break; sleep 2; done
+          curl -sf http://127.0.0.1:8080/saglik
+      - name: Testler
+        run: |
+          pip install requests
+          python3 tests/smoke.py http://127.0.0.1:8080
+          python3 tests/security_and_flow.py http://127.0.0.1:8080
+          python3 tests/admin_flow.py http://127.0.0.1:8080
+      - name: Uygulama günlüğü
+        if: always()
+        run: tail -n 200 app.log

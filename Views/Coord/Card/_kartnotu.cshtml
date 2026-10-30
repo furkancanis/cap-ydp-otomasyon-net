@@ -1,0 +1,33 @@
+@{
+    var s = (Row)ViewBag.S;
+    var ro = (bool)ViewBag.Ro;
+    var notes = (List<Row>)ViewBag.Notes;
+    var baseUrl = "/koordinator/ogrenci/" + s.L("id");
+}
+<div class="alert info">Bu notlar yalnızca koordinatör ve bölüm başkanı tarafından görülür; öğrenci göremez.</div>
+@if (!ro)
+{
+<div class="card"><div class="bd">
+  <form method="post" action="@(baseUrl + "/not")">@H.Raw(H.CsrfField(Ctx))
+    <label for="nbody">Yeni not</label><textarea id="nbody" name="body" required maxlength="5000"></textarea>
+    <button class="btn mt" type="submit">Notu ekle</button>
+  </form>
+</div></div>
+}
+<div class="card"><div class="bd flush">
+@if (notes.Count == 0)
+{
+  <div class="empty">Not yok.</div>
+}
+else
+{
+<table class="tbl"><thead><tr><th>Tarih</th><th>Yazan</th><th>Not</th><th>Durum</th><th></th></tr></thead>
+@foreach (var n in notes)
+{
+  <tr class="@(n.S("state") == "iptal" ? "dim" : "")"><td class="nowrap small">@H.Dt(n.Dt("created_at"))</td><td class="small">@n.S("author")</td>
+  <td class="body">@n.S("body")</td><td>@H.Badge(n.S("state"))</td>
+  <td>@if (!ro && n.S("state") == "aktif") {@H.ReasonPop(Ctx, "İptal", "/koordinator/kart-notu/" + n.L("id") + "/iptal", null, "danger", "Notu iptal et")}</td></tr>
+}
+</table>
+}
+</div></div>

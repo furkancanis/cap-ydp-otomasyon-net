@@ -1,0 +1,55 @@
+@{
+    var s = (Row)ViewBag.S;
+    var ro = (bool)ViewBag.Ro;
+    var decisions = (List<Row>)ViewBag.Decisions;
+    var docs = (List<Row>)ViewBag.Docs;
+    var eval = (RuleResult)ViewBag.Eval;
+    var terms = (List<Row>)ViewBag.Terms;
+    var baseUrl = "/koordinator/ogrenci/" + s.L("id");
+    var types = L.Decision.Where(kv => !(kv.Key == "mezuniyet" && s.S("program_type") != "CAP") && !(kv.Key == "sertifika" && s.S("program_type") != "YDP"));
+    var docOptions = docs.Select(d => new KeyValuePair<string, string>(d.L("id").ToString(), "#" + d.L("id") + " " + d.S("title")));
+}
+<div class="grid2">
+  <div class="card">
+    <div class="hd"><h3>Sistem değerlendirmesi</h3>@H.Badge(eval.Level)</div>
+    <div class="bd">@await Html.PartialAsync("~/Views/Partials/_Rules.cshtml", eval)</div>
+  </div>
+  @if (!ro)
+  {
+  <div class="card">
+    <div class="hd"><h3>Karar ver</h3></div>
+    <div class="bd">
+      <p class="small">Sistem yalnızca uyarır; mezuniyet, sertifika veya kayıt silme kararı koordinatöre aittir. Karar öğrencinin durumunu günceller ve işlem kaydına yazılır.</p>
+      <form method="post" action="@(baseUrl + "/karar")" data-confirm="Karar kaydedilsin mi? Öğrencinin durumu değişecektir.">
+        @H.Raw(H.CsrfField(Ctx))
+        <div class="form-grid">
+          <div class="full"><label>Karar türü</label><select name="decision_type" required>@H.Options(types)</select></div>
+          <div><label>Karar tarihi</label><input type="date" name="decision_date" value="@Clock.Today().ToString("yyyy-MM-dd")" required></div>
+          <div><label>İlgili dönem</label><select name="term_id">@H.TermOptions(terms, Terms.Current(Ctx)?.L("id"), true)</select></div>
+          <div class="full"><label>Yönetim Kurulu karar no / referans</label><input type="text" name="reference_no" maxlength="100"></div>
+          <div class="full"><label>Dayanak belge</label><select name="document_id"><option value="">—</option>@H.Options(docOptions)</select></div>
+          <div class="full"><label>Gerekçe *</label><textarea name="reason" required minlength="5" maxlength="1000"></textarea></div>
+        </div>
+        <button class="btn mt" type="submit">Kararı kaydet</button>
+      </form>
+    </div>
+  </div>
+  }
+</div>
+<div class="card"><div class="hd"><h3>Karar geçmişi</h3></div><div class="bd flush">
+@if (decisions.Count == 0)
+{
+  <div class="empty">Karar yok.</div>
+}
+else
+{
+<table class="tbl"><thead><tr><th>Tarih</th><th>Karar</th><th>Dönem</th><th>Durum değişimi</th><th>Referans</th><th>Gerekçe</th><th>Veren</th></tr></thead>
+@foreach (var d in decisions)
+{
+  <tr><td class="nowrap">@H.D(d.Dt("decision_date"))</td><td>@L.Get(L.Decision, d.S("decision_type"))</td><td class="small">@(d.IsNull("academic_year") ? "—" : d.S("academic_year") + " " + d.S("season"))</td>
+  <td>@H.Badge(d.S("previous_status")) → @H.Badge(d.S("new_status"))</td><td class="small">@d.S("reference_no")@if (!d.IsNull("document_id")) {<br>@H.DocLink(d.L("document_id"), d.Sn("doc_title") ?? "Belge")}</td>
+  <td>@d.S("reason")</td><td class="small">@d.S("author")</td></tr>
+}
+</table>
+}
+</div></div>

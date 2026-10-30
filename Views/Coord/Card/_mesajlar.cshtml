@@ -1,0 +1,39 @@
+@{
+    var s = (Row)ViewBag.S;
+    var ro = (bool)ViewBag.Ro;
+    var thread = (List<Row>)ViewBag.Thread;
+    var baseUrl = "/koordinator/ogrenci/" + s.L("id");
+}
+<div class="card">
+  <div class="hd"><h3>Yazışma — @s.S("full_name")</h3><span class="small muted">Mesajlar kalıcı kayıttır; düzenlenemez ve silinemez.</span></div>
+  <div class="bd">
+    <div class="chat">
+      @if (thread.Count == 0)
+      {
+        <div class="empty">Henüz mesaj yok.</div>
+      }
+      @foreach (var m in thread)
+      {
+        var mine = m.S("sender_role") != "ogrenci";
+        <div class="@(mine ? "msg mine" : "msg")">
+          <div class="who">@m.S("sender_name") · @L.Get(L.Role, m.S("sender_role")) · @H.Dt(m.Dt("created_at"))@(m.IsNull("read_at") ? "" : " · okundu")</div>
+          <div class="body">@m.S("body")</div>
+          @if (!m.IsNull("document_id"))
+          {
+            <div class="att">@Nav.Icon("clip") @H.DocLink(m.L("document_id"), m.S("doc_name")) (@H.Size(m.L("doc_size")))</div>
+          }
+        </div>
+      }
+    </div>
+    @if (!ro)
+    {
+    <form method="post" action="@(baseUrl + "/mesaj")" enctype="multipart/form-data" class="mt">
+      @H.Raw(H.CsrfField(Ctx))
+      <label for="body">Yeni mesaj</label>
+      <textarea id="body" name="body" maxlength="5000" required></textarea>
+      <div class="row-flex mt"><input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" data-max-mb="@Settings.Get(Ctx, "max_upload_mb", "5")"><span class="spacer"></span><button class="btn" type="submit">Gönder</button></div>
+      <p class="hint">Öğrenci yeni mesajdan uygulama içi bildirimle haberdar edilir. Ek dosya öğrencinin belge arşivine "Mesaj Eki" olarak kaydedilir.</p>
+    </form>
+    }
+  </div>
+</div>

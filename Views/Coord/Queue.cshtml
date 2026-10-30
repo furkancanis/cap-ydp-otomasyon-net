@@ -1,0 +1,113 @@
+@{
+    var plan = (List<Row>)ViewBag.Plan;
+    var enrollments = (List<Row>)ViewBag.Enrollments;
+    var grades = (List<Row>)ViewBag.Grades;
+    var documents = (List<Row>)ViewBag.Documents;
+    var courseRequests = (List<Row>)ViewBag.CourseRequests;
+    var onay = H.KV("karar", "onay");
+    var ret = H.KV("karar", "ret");
+}
+<div class="page-title">
+  <div><h1>Onay Bekleyen İşlemler</h1><div class="sub">Öğrencinin girdiği kayıtlar onaylanana kadar kesinleşmez ve kural hesaplarına girmez. Onaylanan kayıt kilitlenir.</div></div>
+  <form id="bulk" method="post" action="/koordinator/onay/toplu" data-confirm="Seçili kayıtlar onaylansın mı?">@H.Raw(H.CsrfField(Ctx))<button class="btn ok" type="submit">Seçilenleri onayla</button></form>
+</div>
+
+<div class="card"><div class="hd"><h3>Ders listesi talepleri (@plan.Count)</h3></div><div class="bd flush">
+@if (plan.Count == 0)
+{
+  <div class="empty">Bekleyen talep yok.</div>
+}
+else
+{
+<div class="table-wrap"><table class="tbl">
+  <thead><tr><th><input type="checkbox" data-check-all="plan[]" aria-label="Tümünü seç"></th><th>Öğrenci</th><th>Ders</th><th class="num">AKTS</th><th>Tarih</th><th></th></tr></thead>
+  @foreach (var r in plan)
+  {
+  <tr>
+    <td><input type="checkbox" name="plan[]" value="@r.L("id")" form="bulk"></td>
+    <td><a href="/koordinator/ogrenci/@(r.L("student_id"))?tab=liste">@r.S("full_name")</a> <small>@r.S("student_no") · @L.Get(L.ProgramShort, r.S("program_type"))</small></td>
+    <td><code>@r.S("code")</code> @r.S("name")</td><td class="num">@H.Ects(r.Dec("ects"))</td><td class="nowrap small">@H.Dt(r.Dt("created_at"))</td>
+    <td><div class="actions">@H.PostBtn(Ctx, "Onayla", "/koordinator/liste/" + r.L("id") + "/karar", onay, "ok")@H.ReasonPop(Ctx, "Reddet", "/koordinator/liste/" + r.L("id") + "/karar", ret, "danger", "Reddet")</div></td>
+  </tr>
+  }
+</table></div>
+}
+</div></div>
+
+<div class="card"><div class="hd"><h3>Dönem ders kayıtları (@enrollments.Count)</h3></div><div class="bd flush">
+@if (enrollments.Count == 0)
+{
+  <div class="empty">Bekleyen kayıt yok.</div>
+}
+else
+{
+<div class="table-wrap"><table class="tbl">
+  <thead><tr><th><input type="checkbox" data-check-all="enr[]" aria-label="Tümünü seç"></th><th>Öğrenci</th><th>Dönem</th><th>Ders</th><th>Deneme</th><th>Durum</th><th></th></tr></thead>
+  @foreach (var r in enrollments)
+  {
+  <tr>
+    <td><input type="checkbox" name="enr[]" value="@r.L("id")" form="bulk"></td>
+    <td><a href="/koordinator/ogrenci/@(r.L("student_id"))?tab=dersler">@r.S("full_name")</a> <small>@r.S("student_no")</small></td>
+    <td class="nowrap">@r.S("academic_year") @r.S("season")</td>
+    <td><code>@r.S("code")</code> @r.S("name")</td><td>@r.I("attempt_no"). deneme</td><td>@H.Badge(r.S("status"))</td>
+    <td><div class="actions">@H.PostBtn(Ctx, "Onayla", "/koordinator/ders/" + r.L("id") + "/karar", onay, "ok")@H.ReasonPop(Ctx, "Reddet", "/koordinator/ders/" + r.L("id") + "/karar", ret, "danger", "Reddet")</div></td>
+  </tr>
+  }
+</table></div>
+}
+</div></div>
+
+<div class="card"><div class="hd"><h3>Dönem sonu not girişleri (@grades.Count)</h3><span class="small muted">Notu transkriptle karşılaştırıp onaylayın.</span></div><div class="bd flush">
+@if (grades.Count == 0)
+{
+  <div class="empty">Bekleyen not yok.</div>
+}
+else
+{
+<div class="table-wrap"><table class="tbl">
+  <thead><tr><th><input type="checkbox" data-check-all="grade[]" aria-label="Tümünü seç"></th><th>Öğrenci</th><th>Dönem</th><th>Ders</th><th>Girilen not</th><th>Transkript</th><th></th></tr></thead>
+  @foreach (var r in grades)
+  {
+  <tr>
+    <td><input type="checkbox" name="grade[]" value="@r.L("id")" form="bulk"></td>
+    <td><a href="/koordinator/ogrenci/@(r.L("student_id"))?tab=notlar">@r.S("full_name")</a> <small>@r.S("student_no")</small></td>
+    <td class="nowrap">@r.S("academic_year") @r.S("season")</td>
+    <td><code>@r.S("code")</code> @r.S("name")</td>
+    <td><strong>@r.S("letter_grade")</strong></td>
+    <td>@H.DocLink(r.L("transcript_document_id"), "Transkripti aç") @H.Badge(r.S("doc_state"))</td>
+    <td><div class="actions">@H.PostBtn(Ctx, "Onayla", "/koordinator/not/" + r.L("id") + "/karar", onay, "ok")@H.ReasonPop(Ctx, "Reddet", "/koordinator/not/" + r.L("id") + "/karar", ret, "danger", "Reddet")</div></td>
+  </tr>
+  }
+</table></div>
+}
+</div></div>
+
+<div class="card"><div class="hd"><h3>Belgeler (@documents.Count)</h3></div><div class="bd flush">
+@if (documents.Count == 0)
+{
+  <div class="empty">Bekleyen belge yok.</div>
+}
+else
+{
+<div class="table-wrap"><table class="tbl">
+  <thead><tr><th><input type="checkbox" data-check-all="doc[]" aria-label="Tümünü seç"></th><th>Öğrenci</th><th>Belge</th><th>Tür</th><th>Dönem</th><th>Yüklenme</th><th></th></tr></thead>
+  @foreach (var r in documents)
+  {
+  <tr>
+    <td><input type="checkbox" name="doc[]" value="@r.L("id")" form="bulk"></td>
+    <td><a href="/koordinator/ogrenci/@(r.L("student_id"))?tab=belgeler">@r.S("full_name")</a> <small>@r.S("student_no")</small></td>
+    <td>@H.DocLink(r.L("id"), r.S("title"))<br><small>@r.S("original_name") · @H.Size(r.L("size_bytes"))@(r.I("version_no") > 1 ? " · sürüm " + r.I("version_no") : "")</small></td>
+    <td class="small">@L.Get(L.DocTypes, r.S("doc_type"))</td>
+    <td class="nowrap">@(r.IsNull("academic_year") ? "—" : r.S("academic_year") + " " + r.S("season"))</td>
+    <td class="nowrap small">@H.Dt(r.Dt("created_at"))</td>
+    <td><div class="actions">@H.PostBtn(Ctx, "Onayla", "/koordinator/belge/" + r.L("id") + "/karar", onay, "ok")@H.ReasonPop(Ctx, "Reddet", "/koordinator/belge/" + r.L("id") + "/karar", ret, "danger", "Reddet")</div></td>
+  </tr>
+  }
+</table></div>
+}
+</div></div>
+
+@if (courseRequests.Count > 0)
+{
+<div class="alert info">Katalog dışı @courseRequests.Count ders talebi var. <a href="/koordinator/ders-talepleri">Talepleri incele →</a></div>
+}

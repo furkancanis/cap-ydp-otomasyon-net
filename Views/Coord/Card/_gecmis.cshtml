@@ -1,0 +1,5 @@
+@{
+    var logs = (List<Row>)ViewBag.Logs;
+}
+<div class="alert info">Bu öğrenciyle ilgili tüm işlemler (kim, ne zaman, neyi, eski ve yeni değeriyle) aşağıdadır. İşlem kaydı değiştirilemez ve silinemez.</div>
+<div class="card"><div class="bd flush">@await Html.PartialAsync("~/Views/Partials/_AuditTable.cshtml", new AuditTableModel(logs))</div></div>

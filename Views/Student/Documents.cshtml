@@ -1,0 +1,56 @@
+@{
+    var docs = (List<Row>)ViewBag.Docs;
+    var requests = (List<Row>)ViewBag.Requests;
+    var terms = (List<Row>)ViewBag.Terms;
+    var maxMb = Settings.Get(Ctx, "max_upload_mb", "5");
+    var types = L.Without(L.DocTypes, "mesaj_eki", "yonetim_kurulu_karari");
+    var open = requests.Where(r => r.S("state") is "bekliyor" or "reddedildi").ToList();
+    var supersede = docs.Where(d => d.S("doc_type") != "mesaj_eki").Select(d => new KeyValuePair<string, string>(d.L("id").ToString(), d.S("title") + " (v" + d.I("version_no") + ")"));
+}
+<div class="page-title"><div><h1>Belgelerim</h1><div class="sub">İmzalı formlarınızı (anadalınızda imzalatıp tarayarak), transkriptlerinizi ve istenen belgeleri buradan yükleyin. Yüklenen belgeler silinemez.</div></div></div>
+
+@if (open.Count > 0)
+{
+<div class="card"><div class="hd"><h3>Koordinatörün istediği belgeler</h3></div><div class="bd flush"><table class="tbl">
+  @foreach (var r in open)
+  {
+  <tr><td><strong>@L.Get(L.DocTypes, r.S("doc_type"))</strong><br>@r.S("description")@if (!r.IsNull("due_date")) {<br><small>Son tarih: @H.D(r.Dt("due_date"))</small>}@if (!r.IsNull("response_note")) {<br><small class="muted">Ret gerekçesi: @r.S("response_note")</small>}</td>
+    <td>@H.Badge(r.S("state"))</td>
+    <td><form method="post" action="/ogrenci/belgeler" enctype="multipart/form-data" class="row-flex">@H.Raw(H.CsrfField(Ctx))
+      <input type="hidden" name="request_id" value="@r.L("id")"><input type="hidden" name="doc_type" value="@r.S("doc_type")"><input type="hidden" name="title" value="@L.Get(L.DocTypes, r.S("doc_type"))">
+      <input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png" data-max-mb="@maxMb"><button class="btn sm" type="submit">Yükle</button></form></td></tr>
+  }
+</table></div></div>
+}
+
+<div class="card"><div class="hd"><h3>Belge yükle</h3></div><div class="bd">
+  <form method="post" action="/ogrenci/belgeler" enctype="multipart/form-data">@H.Raw(H.CsrfField(Ctx))
+    <div class="form-grid">
+      <div class="span2"><label>Belge türü</label><select name="doc_type" required>@H.Options(types, "kabul_protokol_formu")</select></div>
+      <div><label>İlgili dönem</label><select name="term_id">@H.TermOptions(terms, Terms.Current(Ctx)?.L("id"), true)</select></div>
+      <div class="span2"><label>Başlık (isteğe bağlı)</label><input type="text" name="title" maxlength="200"></div>
+      <div><label>Yenilediğim belge (varsa)</label><select name="supersedes_id"><option value="">— Yeni belge —</option>@H.Options(supersede)</select></div>
+      <div class="full"><label>Dosya (PDF, JPG, PNG · en fazla @maxMb MB)</label><input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png" data-max-mb="@maxMb"></div>
+    </div>
+    <p class="hint">Ana dal transkriptinizi yüklemek isteğe bağlıdır. Her dönem sonunda ÇAP/YDP not belgesinin yüklenmesi zorunludur.</p>
+    <button class="btn" type="submit">Yükle</button>
+  </form>
+</div></div>
+
+<div class="card"><div class="hd"><h3>Doküman arşivim (@docs.Count)</h3></div><div class="bd flush">
+@if (docs.Count == 0)
+{
+  <div class="empty">Henüz belge yok.</div>
+}
+else
+{
+<div class="table-wrap"><table class="tbl"><thead><tr><th>Belge</th><th>Tür</th><th>Dönem</th><th>Sürüm</th><th>Durum</th></tr></thead>
+@foreach (var d in docs)
+{
+  <tr class="@((d.S("state") is "iptal" or "reddedildi") ? "dim" : "")"><td>@H.DocLink(d.L("id"), d.S("title"))<br><small>@d.S("original_name") · @H.Size(d.L("size_bytes")) · @H.Dt(d.Dt("created_at"))</small></td>
+  <td class="small">@L.Get(L.DocTypes, d.S("doc_type"))</td><td class="small nowrap">@(d.IsNull("academic_year") ? "—" : d.S("academic_year") + " " + d.S("season"))</td><td class="small">@("v" + d.I("version_no"))</td>
+  <td>@H.Badge(d.S("state"))@if (!d.IsNull("reject_reason")) {<br><small>@d.S("reject_reason")</small>}</td></tr>
+}
+</table></div>
+}
+</div></div>

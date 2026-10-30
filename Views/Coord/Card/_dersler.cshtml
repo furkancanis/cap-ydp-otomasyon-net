@@ -1,0 +1,94 @@
+@{
+    var s = (Row)ViewBag.S;
+    var progress = (ProgressInfo)ViewBag.Progress;
+    var ro = (bool)ViewBag.Ro;
+    var catalog = (List<Row>)ViewBag.Catalog;
+    var scale = (List<string>)ViewBag.Scale;
+    var terms = (List<Row>)ViewBag.Terms;
+    var baseUrl = "/koordinator/ogrenci/" + s.L("id");
+    var curId = Terms.Current(Ctx)?.L("id");
+    var groups = progress.Attempts
+        .GroupBy(a => (Label: a.S("academic_year") + " " + a.S("season"), Key: a.I("sort_key")))
+        .OrderByDescending(g => g.Key.Key)
+        .ToList();
+}
+@if (!ro)
+{
+<div class="card">
+  <div class="hd"><h3>Ders kaydı ekle (koordinatör / geriye dönük giriş)</h3></div>
+  <div class="bd">
+    <form method="post" action="@(baseUrl + "/ders/ekle")">
+      @H.Raw(H.CsrfField(Ctx))
+      <div class="form-grid">
+        <div class="span2"><label>Ders</label><select name="course_id" required><option value="">— Ders seçin —</option>
+          @foreach (var c in catalog)
+          {
+            <option value="@c.L("id")">@(c.S("code") + " — " + c.S("name"))</option>
+          }
+        </select></div>
+        <div><label>Akademik yıl / dönem</label><select name="term_id" required>@H.TermOptions(terms, curId)</select></div>
+        <div><label>Durum</label><select name="status" data-status-for="grade-new">@H.Options(L.EnrStatus, "gecti")</select></div>
+        <div><label>Harf notu</label><select name="grade" id="grade-new"><option value="">—</option>@foreach (var g in scale) {<option>@g</option>}</select></div>
+        <div class="span2"><label>Not / açıklama</label><input type="text" name="note" maxlength="500"></div>
+        <div><label class="check"><input type="checkbox" name="legacy" value="1" checked> Geriye dönük kayıt (ilk kurulum)</label></div>
+      </div>
+      <p class="hint">Koordinatör girişleri onay kilidine takılmadan doğrudan onaylı kaydedilir. Ders öğrencinin listesinde yoksa otomatik eklenir.</p>
+      <button class="btn mt" type="submit">Kaydet</button>
+    </form>
+  </div>
+</div>
+}
+
+@if (groups.Count == 0)
+{
+  <div class="card"><div class="empty">Henüz ders kaydı yok.</div></div>
+}
+@foreach (var grp in groups)
+{
+<div class="card">
+  <div class="hd"><h3>@grp.Key.Label</h3><span class="small muted">@grp.Count() kayıt</span></div>
+  <div class="bd flush"><div class="table-wrap"><table class="tbl">
+    <thead><tr><th>Kod</th><th>Ders</th><th class="num">AKTS</th><th>Deneme</th><th>Durum</th><th>Not</th><th>Geçtiği dönem</th><th>Onay</th><th>Açıklama</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var a in grp)
+    {
+      var ap = a.S("approval_state");
+      var dim = ap is "iptal" or "reddedildi";
+      var id = a.L("id");
+      var explain = a.Sn("reject_reason") ?? a.Sn("cancel_reason") ?? a.Sn("note") ?? "";
+      <tr class="@(dim ? "dim" : "")">
+        <td><code>@a.S("code")</code></td><td>@a.S("name")</td><td class="num">@H.Ects(a.Dec("ects"))</td>
+        <td class="num">@a.I("attempt_no")</td><td>@H.Badge(a.S("status"))</td><td><strong>@a.S("letter_grade")</strong></td>
+        <td class="small nowrap">@(a.IsNull("passed_year") ? "—" : a.S("passed_year") + " " + a.S("passed_season"))</td>
+        <td>@H.Badge(ap)@if (a.B("is_legacy")) {<br><small class="muted">geriye dönük</small>}@if (a.I("correction_count") > 0) {<br><small class="muted">@a.I("correction_count") düzeltme</small>}</td>
+        <td class="small">@explain</td>
+        <td>
+          @if (!ro)
+          {
+          <div class="actions">
+            @if (ap == "onay_bekliyor")
+            {
+              @H.PostBtn(Ctx, "Onayla", "/koordinator/ders/" + id + "/karar", H.KV("karar", "onay"), "ok")
+              @H.ReasonPop(Ctx, "Reddet", "/koordinator/ders/" + id + "/karar", H.KV("karar", "ret"), "danger", "Reddet")
+            }
+            @if (ap is "onay_bekliyor" or "onaylandi")
+            {
+              <details class="pop"><summary class="btn sm out">Düzelt</summary><div class="pop-body">
+                <form method="post" action="@("/koordinator/ders/" + id + "/duzelt")">@H.Raw(H.CsrfField(Ctx))
+                  <label>Dönem</label><select name="term_id">@H.TermOptions(terms, a.L("term_id"))</select>
+                  <label>Durum</label><select name="status" data-status-for="@("g" + id)">@H.Options(L.EnrStatus, a.S("status"))</select>
+                  <label>Harf notu</label><select name="grade" id="@("g" + id)"><option value="">—</option>@foreach (var g in scale) {<option selected="@(a.S("letter_grade") == g)">@g</option>}</select>
+                  <label>Düzeltme gerekçesi (zorunlu)</label><textarea name="reason" required minlength="5" maxlength="500"></textarea>
+                  <button class="btn sm" type="submit">Düzeltmeyi kaydet</button>
+                </form></div></details>
+              @H.ReasonPop(Ctx, "İptal", "/koordinator/ders/" + id + "/iptal", null, "danger", "Kaydı iptal et", "İptal gerekçesi (zorunlu) — kayıt silinmez")
+            }
+          </div>
+          }
+        </td>
+      </tr>
+    }
+    </tbody>
+  </table></div></div>
+</div>
+}

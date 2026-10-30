@@ -1,0 +1,108 @@
+@{
+    var s = (Row)ViewBag.S;
+    var progress = (ProgressInfo)ViewBag.Progress;
+    var ro = (bool)ViewBag.Ro;
+    var items = (List<Row>)ViewBag.Items;
+    var catalog = (List<Row>)ViewBag.Catalog;
+    var baseUrl = "/koordinator/ogrenci/" + s.L("id");
+    var approved = items.Where(i => i.S("state") == "onaylandi").ToList();
+    var other = items.Where(i => i.S("state") != "onaylandi").ToList();
+    var byPlan = progress.Plan.ToDictionary(p => p.PlanId);
+    var progLabel = new Dictionary<string, (string Cls, string Text)>
+    {
+        ["gecti"] = ("gecti", "Geçti"), ["muaf"] = ("muaf", "Muaf"), ["devam"] = ("alindi", "Devam ediyor"),
+        ["planlandi"] = ("planlandi", "Planlandı"), ["kaldi"] = ("kaldi", "Kaldı"), ["alinmadi"] = ("x", "Henüz alınmadı"),
+    };
+}
+@if (!ro)
+{
+<div class="card">
+  <div class="hd"><h3>Ders listesine ders ekle</h3>@if (s.S("program_type") == "CAP") {@H.PostBtn(Ctx, "Protokol şablonundaki dersleri ekle", baseUrl + "/liste/protokol", null, "out", "Protokoldeki eksik dersler listeye eklensin mi?")}</div>
+  <div class="bd">
+    <form method="post" action="@(baseUrl + "/liste/ekle")" class="form-row">
+      @H.Raw(H.CsrfField(Ctx))
+      <div><label>Katalogdan ders</label><select name="course_id" required><option value="">— Ders seçin —</option>
+        @foreach (var c in catalog)
+        {
+          <option value="@c.L("id")">@(c.S("code") + " — " + c.S("name") + " (" + H.Ects(c.Dec("ects")) + " AKTS" + (c.IsNull("semester") ? "" : ", " + c.I("semester") + ". yy") + ")")</option>
+        }
+      </select></div>
+      <div><label>Gerekçe / açıklama</label><input type="text" name="reason" maxlength="500" placeholder="ör. Bölüm ders planı değişikliği"></div>
+      <div class="w-auto"><button class="btn" type="submit">Ekle</button></div>
+    </form>
+    <p class="hint">Koordinatörün eklediği ders doğrudan onaylıdır. Her ekleme/çıkarma gerekçesi ve tarihiyle işlem kaydına yazılır; geçilmiş dersler ve notlar etkilenmez.</p>
+  </div>
+</div>
+}
+
+<div class="card">
+  <div class="hd"><h3>Onaylı ders listesi (@approved.Count ders · @H.Ects(progress.PlanEcts) AKTS)</h3>
+    <span class="small muted">Tamamlanan @H.Ects(progress.PlanEcts - progress.RemainingEcts) AKTS · Kalan @H.Ects(progress.RemainingEcts) AKTS</span></div>
+  <div class="bd flush">
+  @if (approved.Count == 0)
+  {
+    <div class="empty">Onaylı ders yok.</div>
+  }
+  else
+  {
+  <div class="table-wrap"><table class="tbl">
+    <thead><tr><th>Kod</th><th>Ders</th><th class="num">AKTS</th><th>Yy</th><th>Tür</th><th>Durum</th><th>Not</th><th>Geçtiği dönem</th><th>Deneme</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var i in approved)
+    {
+      var pp = byPlan.TryGetValue(i.L("id"), out var pv) ? pv : null;
+      var pl = progLabel[pp?.State ?? "alinmadi"];
+      <tr>
+        <td><code>@i.S("code")</code></td><td>@i.S("name")@if (i.B("is_legacy")) {<small class="muted"> (geriye dönük)</small>}</td>
+        <td class="num">@H.Ects(i.Dec("ects"))</td><td>@i.S("semester")</td><td class="small">@L.Get(L.Category, i.S("category"))</td>
+        <td>@H.Badge(pl.Cls, pl.Text)</td><td><strong>@(pp?.Grade ?? "")</strong></td><td class="nowrap small">@(pp?.PassedTerm ?? "—")</td><td class="num">@(pp?.AttemptCount ?? 0)</td>
+        <td>@if (!ro) {@H.ReasonPop(Ctx, "Listeden çıkar", "/koordinator/liste/" + i.L("id") + "/cikar", null, "danger", "Listeden çıkar", "Çıkarma gerekçesi (zorunlu)")}</td>
+      </tr>
+    }
+    </tbody>
+  </table></div>
+  }
+  </div>
+</div>
+
+@if (progress.OffPlanCompleted.Count > 0)
+{
+<div class="card"><div class="hd"><h3>Listeden çıkarılmış ancak geçilmiş dersler</h3></div><div class="bd flush"><table class="tbl">
+  @foreach (var t in progress.OffPlanCompleted)
+  {
+    <tr><td><code>@t.S("code")</code> @t.S("name")</td><td>@H.Badge(t.S("status")) @t.S("letter_grade")</td><td>@t.S("academic_year") @t.S("season")</td></tr>
+  }
+</table></div></div>
+}
+
+<div class="card">
+  <div class="hd"><h3>Bekleyen, reddedilen, çıkarılan kayıtlar</h3></div>
+  <div class="bd flush">
+  @if (other.Count == 0)
+  {
+    <div class="empty">Kayıt yok.</div>
+  }
+  else
+  {
+  <div class="table-wrap"><table class="tbl">
+    <thead><tr><th>Kod</th><th>Ders</th><th>Durum</th><th>Ekleyen</th><th>Tarih</th><th>Gerekçe</th><th></th></tr></thead>
+    @foreach (var i in other)
+    {
+      var when = i.Dt("removed_at") ?? i.Dt("decided_at") ?? i.Dt("created_at");
+      var why = i.Sn("removed_reason") ?? i.Sn("reject_reason") ?? i.Sn("added_reason") ?? "";
+      <tr class="@(i.S("state") == "onay_bekliyor" ? "" : "dim")">
+        <td><code>@i.S("code")</code></td><td>@i.S("name") <small>(@H.Ects(i.Dec("ects")) AKTS)</small></td><td>@H.Badge(i.S("state"))</td>
+        <td class="small">@i.S("creator")</td><td class="nowrap small">@H.Dt(when)</td>
+        <td class="small">@why</td>
+        <td>
+          @if (!ro && i.S("state") == "onay_bekliyor")
+          {
+            <div class="actions">@H.PostBtn(Ctx, "Onayla", "/koordinator/liste/" + i.L("id") + "/karar", H.KV("karar", "onay"), "ok")@H.ReasonPop(Ctx, "Reddet", "/koordinator/liste/" + i.L("id") + "/karar", H.KV("karar", "ret"), "danger", "Reddet")</div>
+          }
+        </td>
+      </tr>
+    }
+  </table></div>
+  }
+  </div>
+</div>

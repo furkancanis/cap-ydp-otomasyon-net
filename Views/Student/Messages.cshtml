@@ -1,0 +1,28 @@
+@{
+    var thread = (List<Row>)ViewBag.Thread;
+}
+<div class="page-title"><div><h1>Mesajlar</h1><div class="sub">Koordinatörle yazışmalarınız kalıcı kayıttır; silinemez.</div></div></div>
+<div class="card"><div class="bd">
+  <div class="chat">
+    @if (thread.Count == 0)
+    {
+      <div class="empty">Henüz mesaj yok. Sorularınızı aşağıdan iletebilirsiniz.</div>
+    }
+    @foreach (var m in thread)
+    {
+      var mine = m.S("sender_role") == "ogrenci";
+      <div class="@(mine ? "msg mine" : "msg")">
+        <div class="who">@(mine ? "Siz" : m.S("sender_name") + " (" + L.Get(L.Role, m.S("sender_role")) + ")") · @H.Dt(m.Dt("created_at"))@(mine && !m.IsNull("read_at") ? " · okundu" : "")</div>
+        <div class="body">@m.S("body")</div>
+        @if (!m.IsNull("document_id"))
+        {
+          <div class="att">@Nav.Icon("clip") @H.DocLink(m.L("document_id"), m.S("doc_name")) (@H.Size(m.L("doc_size")))</div>
+        }
+      </div>
+    }
+  </div>
+  <form method="post" action="/ogrenci/mesajlar" enctype="multipart/form-data" class="mt">@H.Raw(H.CsrfField(Ctx))
+    <label for="body">Mesajınız</label><textarea id="body" name="body" required maxlength="5000"></textarea>
+    <div class="row-flex mt"><input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" data-max-mb="@Settings.Get(Ctx, "max_upload_mb", "5")"><span class="spacer"></span><button class="btn" type="submit">Gönder</button></div>
+  </form>
+</div></div>

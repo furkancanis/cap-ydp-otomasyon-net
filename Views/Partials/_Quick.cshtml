@@ -1,0 +1,15 @@
+@{
+    // Kenar menüyü tekrarlamamak için yalnızca en öncelikli 4 kısayol: önce bekleyen işi olanlar
+    var all = Nav.Build(Ctx).SelectMany(g => g.Items).ToList();
+    var items = all.Select((it, i) => (it, i)).OrderByDescending(x => x.it.Count > 0).ThenBy(x => x.i).Take(4).Select(x => x.it).ToList();
+}
+<section class="quick" aria-label="Hızlı erişim">
+  @foreach (var it in items)
+  {
+    <a class="q" href="@it.Href">
+      <span class="q-ic">@Nav.Icon(it.Icon)</span>
+      <span class="q-tx"><b>@it.Label</b>@if (it.Desc != "") {<small>@it.Desc</small>}</span>
+      @if (it.Count > 0) {<span class="cnt" aria-label="@it.Count bekleyen">@it.Count</span>}
+    </a>
+  }
+</section>

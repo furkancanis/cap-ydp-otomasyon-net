@@ -1,0 +1,6 @@
+bin/
+obj/
+.vs/
+*.user
+tests/__pycache__/
+appsettings.Local.json

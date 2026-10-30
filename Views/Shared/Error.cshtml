@@ -1,0 +1,11 @@
+<div class="card errbox">
+  <div class="bd center">
+    <div class="bigcode">@ViewData["Code"]</div>
+    <h1>@ViewData["ErrTitle"]</h1>
+    @if (!string.IsNullOrEmpty(ViewData["Message"] as string))
+    {
+      <p class="muted">@ViewData["Message"]</p>
+    }
+    <p><a class="btn" href="/">Anasayfaya dön</a></p>
+  </div>
+</div>

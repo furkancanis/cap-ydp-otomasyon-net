@@ -1,0 +1,143 @@
+@{
+    var p = (ProgressInfo)ViewBag.Progress;
+    var planOther = (List<Row>)ViewBag.PlanOther;
+    var catalog = (List<Row>)ViewBag.Catalog;
+    var openTerms = (List<Row>)ViewBag.OpenTerms;
+    var requests = (List<Row>)ViewBag.Requests;
+    var progLabel = new Dictionary<string, (string Cls, string Text)>
+    {
+        ["gecti"] = ("gecti", "Geçti"), ["muaf"] = ("muaf", "Muaf"), ["devam"] = ("alindi", "Devam ediyor"),
+        ["planlandi"] = ("planlandi", "Planlandı"), ["kaldi"] = ("kaldi", "Kaldı"), ["alinmadi"] = ("x", "Henüz alınmadı"),
+    };
+    var takeable = p.Plan.Where(c => c.State is not ("gecti" or "muaf" or "devam" or "planlandi")).ToList();
+    var groups = p.Attempts
+        .GroupBy(a => (Label: a.S("academic_year") + " " + a.S("season"), Key: a.I("sort_key")))
+        .OrderByDescending(g => g.Key.Key)
+        .ToList();
+    long? firstTerm = openTerms.Count > 0 ? openTerms[0].L("id") : null;
+}
+<div class="page-title"><div><h1>Derslerim</h1><div class="sub">Girdiğiniz her kayıt koordinatör onayına gider; onaylanan kayıt kilitlenir ve değiştirilemez.</div></div></div>
+
+<div class="grid2">
+  <div class="card">
+    <div class="hd"><h3>1) Ders listeme ders ekle</h3></div>
+    <div class="bd">
+      <form method="post" action="/ogrenci/liste/ekle">@H.Raw(H.CsrfField(Ctx))
+        <label for="course_code">Ders kodu veya adı (katalogdan seçin)</label>
+        <input type="text" id="course_code" name="course_code" list="catalog" required maxlength="120" autocomplete="off" placeholder="ör. 3301454">
+        <datalist id="catalog">
+          @foreach (var c in catalog)
+          {
+            <option value="@(c.S("code") + " - " + c.S("name"))"></option>
+          }
+        </datalist>
+        <p class="hint">Serbest metinle ders eklenemez; yalnızca bölüm kataloğundaki dersler seçilebilir.</p>
+        <button class="btn" type="submit">Listeye ekle (onaya gönder)</button>
+      </form>
+    </div>
+  </div>
+  <div class="card">
+    <div class="hd"><h3>2) Dönem dersi gir</h3></div>
+    <div class="bd">
+      <form method="post" action="/ogrenci/donem-dersi">@H.Raw(H.CsrfField(Ctx))
+        <div class="form-grid">
+          <div><label>Dönem</label><select name="term_id" required>@H.TermOptions(openTerms, firstTerm)</select></div>
+          <div><label>Ders (onaylı listenizden)</label><select name="course_id" required><option value="">— Seçin —</option>
+            @foreach (var c in takeable)
+            {
+              <option value="@c.CourseId">@(c.Code + " — " + c.Name + (c.State == "kaldi" ? " (tekrar)" : ""))</option>
+            }
+          </select></div>
+        </div>
+        <p class="hint">Gelecek dönemler için girilen dersler "Planlandı" durumunda kaydedilir.</p>
+        <button class="btn mt" type="submit">Dönem dersi olarak gönder</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="hd"><h3>Onaylı ders listem (@p.PlanCount ders · @H.Ects(p.PlanEcts) AKTS)</h3>
+    <span class="small muted">Tamamlanan @H.Ects(p.PlanEcts - p.RemainingEcts) · Kalan @H.Ects(p.RemainingEcts) AKTS</span></div>
+  <div class="bd flush">
+  @if (p.Plan.Count == 0)
+  {
+    <div class="empty">Onaylı ders listeniz henüz yok.</div>
+  }
+  else
+  {
+  <div class="table-wrap"><table class="tbl">
+    <thead><tr><th>Kod</th><th>Ders</th><th class="num">AKTS</th><th>Yy</th><th>Durum</th><th>Not</th><th>Geçtiğim dönem</th><th class="num">Deneme</th></tr></thead>
+    @foreach (var c in p.Plan)
+    {
+      var pl = progLabel[c.State];
+      <tr><td><code>@c.Code</code></td><td>@c.Name</td><td class="num">@H.Ects(c.Ects)</td><td>@c.Semester</td>
+      <td>@H.Badge(pl.Cls, pl.Text)</td><td><strong>@c.Grade</strong></td><td class="small">@(c.PassedTerm ?? "—")</td><td class="num">@c.AttemptCount</td></tr>
+    }
+    <tfoot><tr><td colspan="2">Toplam</td><td class="num">@H.Ects(p.PlanEcts)</td><td colspan="5"></td></tr></tfoot>
+  </table></div>
+  }
+  </div>
+</div>
+
+@if (planOther.Count > 0)
+{
+<div class="card">
+  <div class="hd"><h3>Ders listesi taleplerim</h3></div>
+  <div class="bd flush"><div class="table-wrap"><table class="tbl">
+    <thead><tr><th>Ders</th><th>Durum</th><th>Tarih</th><th>Açıklama</th><th></th></tr></thead>
+    @foreach (var i in planOther)
+    {
+      <tr class="@(i.S("state") == "onay_bekliyor" ? "" : "dim")"><td><code>@i.S("code")</code> @i.S("name")</td><td>@H.Badge(i.S("state"))</td><td class="small nowrap">@H.Dt(i.Dt("created_at"))</td>
+      <td class="small">@(i.Sn("removed_reason") ?? i.Sn("reject_reason") ?? "")</td>
+      <td>@if (i.S("state") == "onay_bekliyor") {@H.PostBtn(Ctx, "Geri çek", "/ogrenci/liste/" + i.L("id") + "/geri-cek", null, "danger", "Talep geri çekilsin mi?")}</td></tr>
+    }
+  </table></div></div>
+</div>
+}
+
+<h2 class="mt">Dönemlere göre ders geçmişim</h2>
+@if (groups.Count == 0)
+{
+  <div class="card"><div class="empty">Henüz dönem ders kaydınız yok.</div></div>
+}
+@foreach (var grp in groups)
+{
+<div class="card"><div class="hd"><h3>@grp.Key.Label</h3></div><div class="bd flush"><div class="table-wrap"><table class="tbl">
+  <thead><tr><th>Kod</th><th>Ders</th><th class="num">AKTS</th><th class="num">Deneme</th><th>Durum</th><th>Not</th><th>Onay</th><th></th></tr></thead>
+  @foreach (var a in grp)
+  {
+    var ap = a.S("approval_state");
+    var why = a.Sn("reject_reason") ?? a.Sn("cancel_reason");
+    <tr class="@((ap is "iptal" or "reddedildi") ? "dim" : "")">
+      <td><code>@a.S("code")</code></td><td>@a.S("name")</td><td class="num">@H.Ects(a.Dec("ects"))</td><td class="num">@a.I("attempt_no")</td>
+      <td>@H.Badge(a.S("status"))</td><td><strong>@a.S("letter_grade")</strong></td>
+      <td>@H.Badge(ap)@if (why != null) {<br><small>@why</small>}</td>
+      <td>@if (ap == "onay_bekliyor") {@H.PostBtn(Ctx, "Geri çek", "/ogrenci/donem-dersi/" + a.L("id") + "/geri-cek", null, "danger", "Talep geri çekilsin mi?")}</td>
+    </tr>
+  }
+</table></div></div></div>
+}
+
+<div class="card">
+  <div class="hd"><h3>Katalogda olmayan ders için talep</h3></div>
+  <div class="bd">
+    <form method="post" action="/ogrenci/ders-talebi">@H.Raw(H.CsrfField(Ctx))
+      <div class="form-grid">
+        <div><label>Ders kodu (biliniyorsa)</label><input type="text" name="course_code" maxlength="20"></div>
+        <div class="span2"><label>Ders adı *</label><input type="text" name="course_name" required maxlength="200"></div>
+        <div class="full"><label>Açıklama *</label><textarea name="explanation" required minlength="10" maxlength="1000" placeholder="Dersin neden listenize eklenmesi gerektiğini açıklayın (ör. protokol özel şartı)."></textarea></div>
+      </div>
+      <button class="btn mt" type="submit">Talebi gönder</button>
+    </form>
+    @if (requests.Count > 0)
+    {
+    <table class="tbl mt"><thead><tr><th>Tarih</th><th>Ders</th><th>Durum</th><th>Yanıt</th></tr></thead>
+      @foreach (var r in requests)
+      {
+        <tr><td class="small nowrap">@H.Dt(r.Dt("created_at"))</td><td>@((r.S("course_code") + " " + r.S("course_name")).Trim())</td><td>@H.Badge(r.S("state"))</td><td class="small">@r.S("response")</td></tr>
+      }
+    </table>
+    }
+  </div>
+</div>

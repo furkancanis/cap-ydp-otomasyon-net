@@ -1,0 +1,82 @@
+@{
+    var counts = (Dictionary<string, Dictionary<string, long>>)ViewBag.Counts;
+    var pending = (Dictionary<string, long>)ViewBag.Pending;
+    var alerts = (List<(Row Student, List<RuleItem> Items)>)ViewBag.Alerts;
+    var recent = (List<Row>)ViewBag.Recent;
+    var decisions = (List<Row>)ViewBag.Decisions;
+    var cur = Terms.Current(Ctx);
+    long Cnt(string t, string st) => counts[t].TryGetValue(st, out var n) ? n : 0;
+}
+<div class="page-title">
+  <div><h1>Bölüm Başkanı Paneli</h1><div class="sub">Yalnızca izleme yetkisi · Aktif dönem: <strong>@Terms.Label(cur)</strong></div></div>
+</div>
+<div class="alert info">Bu hesap kayıtları ve işlem geçmişini görüntüleyebilir; hiçbir veriyi değiştiremez.</div>
+
+<div class="stats">
+  @foreach (var t in new[] { "CAP", "YDP" })
+  {
+    <a class="stat" href="/koordinator/ogrenciler?tur=@t"><div class="v">@counts[t].Values.Sum()</div><div class="l">@L.Program[t] öğrencisi</div></a>
+  }
+  <div class="stat"><div class="v">@Cnt("CAP", "mezun")</div><div class="l">ÇAP mezunu</div></div>
+  <div class="stat"><div class="v">@Cnt("YDP", "sertifika")</div><div class="l">Yandal sertifikası</div></div>
+  <div class="stat warn"><div class="v">@pending.Values.Sum()</div><div class="l">Koordinatör onayı bekleyen</div></div>
+  <div class="@(alerts.Count > 0 ? "stat bad" : "stat ok")"><div class="v">@alerts.Count</div><div class="l">Uyarılı öğrenci</div></div>
+</div>
+
+@await Html.PartialAsync("~/Views/Partials/_Quick.cshtml")
+
+<div class="card">
+  <div class="hd"><h3>Öğrenci durum dağılımı</h3></div>
+  <div class="bd flush"><table class="tbl">
+    <thead><tr><th>Durum</th><th class="num">ÇAP</th><th class="num">YDP</th></tr></thead>
+    @foreach (var kv in L.StudentStatus)
+    {
+      <tr><td>@H.Badge(kv.Key, kv.Value)</td><td class="num">@Cnt("CAP", kv.Key)</td><td class="num">@Cnt("YDP", kv.Key)</td></tr>
+    }
+  </table></div>
+</div>
+
+<div class="card">
+  <div class="hd"><h3>Kural uyarıları</h3></div>
+  <div class="bd flush">
+  @if (alerts.Count == 0)
+  {
+    <div class="empty">Uyarı yok.</div>
+  }
+  else
+  {
+    <table class="tbl"><thead><tr><th>Öğrenci</th><th>Seviye</th><th>Uyarılar</th></tr></thead>
+    @foreach (var a in alerts)
+    {
+      <tr><td><a href="/koordinator/ogrenci/@a.Student.L("id")">@a.Student.S("full_name")</a> <small>@L.Get(L.ProgramShort, a.Student.S("program_type"))</small></td>
+          <td>@H.Badge(a.Student.S("summary_level"))</td>
+          <td class="small">@string.Join(" · ", a.Items.Select(i => i.Title))</td></tr>
+    }
+    </table>
+  }
+  </div>
+</div>
+
+<div class="card">
+  <div class="hd"><h3>Son kararlar</h3></div>
+  <div class="bd flush">
+  @if (decisions.Count == 0)
+  {
+    <div class="empty">Henüz karar yok.</div>
+  }
+  else
+  {
+    <table class="tbl"><thead><tr><th>Tarih</th><th>Öğrenci</th><th>Karar</th><th>Gerekçe</th></tr></thead>
+    @foreach (var d in decisions)
+    {
+      <tr><td>@H.D(d.Dt("decision_date"))</td><td>@d.S("full_name")</td><td>@L.Get(L.Decision, d.S("decision_type"))</td><td>@d.S("reason")</td></tr>
+    }
+    </table>
+  }
+  </div>
+</div>
+
+<div class="card">
+  <div class="hd"><h3>Son işlemler</h3><a class="btn sm out" href="/koordinator/islem-kaydi">Tüm işlem kaydı</a></div>
+  <div class="bd flush">@await Html.PartialAsync("~/Views/Partials/_AuditTable.cshtml", new AuditTableModel(recent, true))</div>
+</div>

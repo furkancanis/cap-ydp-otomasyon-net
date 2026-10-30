@@ -1,0 +1,90 @@
+@{
+    var s = (Row)ViewBag.S;
+    var progress = (ProgressInfo)ViewBag.Progress;
+    var ro = (bool)ViewBag.Ro;
+    var eval = (RuleResult)ViewBag.Eval;
+    var gano = (Row?)ViewBag.Gano;
+    var account = (Row?)ViewBag.Account;
+    var terms = (List<Row>)ViewBag.Terms;
+    var baseUrl = "/koordinator/ogrenci/" + s.L("id");
+}
+<div class="grid2">
+  <div>
+    <div class="card">
+      <div class="hd"><h3>Kural kontrolü (güncel)</h3>@H.Badge(eval.Level)</div>
+      <div class="bd">@await Html.PartialAsync("~/Views/Partials/_Rules.cshtml", eval)</div>
+    </div>
+    <div class="card">
+      <div class="hd"><h3>Ders özeti</h3></div>
+      <div class="bd">
+        <dl class="kv">
+          <dt>Ders listesindeki ders</dt><dd>@progress.PlanCount ders / @H.Ects(progress.PlanEcts) AKTS</dd>
+          <dt>Tamamlanan</dt><dd>@progress.CompletedCount ders / @H.Ects(progress.CompletedEcts) AKTS</dd>
+          <dt>Kalan</dt><dd>@progress.RemainingCount ders / @H.Ects(progress.RemainingEcts) AKTS</dd>
+          <dt>Program ortalaması</dt><dd>@H.Num(progress.Gpa)</dd>
+          <dt>Dönem sonu ortalamaları</dt>
+          <dd>
+            @foreach (var tc in progress.TermCumulative)
+            {
+              <span class="badge b-blue">@tc.Term: @H.Num(tc.Avg)</span>
+            }
+            @if (progress.TermCumulative.Count == 0) {<text>—</text>}
+          </dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <div class="hd"><h3>Ana dal GANO</h3><a class="btn sm out" href="@(baseUrl + "?tab=gano")">GANO geçmişi</a></div>
+      <div class="bd">
+        @if (gano != null)
+        {
+          <div class="bigcode">@H.Num(gano.Dec("gano"))</div>
+          <div class="small muted">@gano.S("academic_year") @gano.S("season") · Kaynak: @gano.S("source") · @H.Dt(gano.Dt("created_at"))</div>
+        }
+        else
+        {
+          <p class="muted">GANO girilmemiş.</p>
+        }
+      </div>
+    </div>
+    <div class="card">
+      <div class="hd"><h3>Öğrenci hesabı</h3></div>
+      <div class="bd">
+        @if (account != null)
+        {
+        <dl class="kv">
+          <dt>Kullanıcı adı</dt><dd><code>@account.S("username")</code></dd>
+          <dt>Durum</dt><dd>@(account.B("is_active") ? H.Badge("aktif") : H.Badge("iptal", "Pasif"))@if (account.B("must_change_password")) {<text> <span class="badge b-amber">Geçici şifre</span></text>}</dd>
+          <dt>Son giriş</dt><dd>@H.Dt(account.Dt("last_login_at"))</dd>
+        </dl>
+          @if (!ro)
+          {
+            <div class="mt">@H.PostBtn(Ctx, "Geçici şifre üret", baseUrl + "/sifre", null, "out", "Öğrenciye yeni geçici şifre üretilsin mi? Eski şifre geçersiz olur.")</div>
+          }
+        }
+      </div>
+    </div>
+    @if (!ro)
+    {
+    <div class="card">
+      <div class="hd"><h3>Öğrenci bilgilerini düzenle</h3></div>
+      <div class="bd">
+        <form method="post" action="@(baseUrl + "/guncelle")">
+          @H.Raw(H.CsrfField(Ctx))
+          <div class="form-grid">
+            <div class="full"><label>Ad Soyad</label><input type="text" name="full_name" value="@s.S("full_name")" required maxlength="150"></div>
+            <div class="full"><label>Okul e-postası</label><input type="email" name="email" value="@s.S("email")" required maxlength="150"></div>
+            <div><label>Kabul dönemi</label><select name="admission_term_id">@H.TermOptions(terms, s.L("admission_term_id"))</select></div>
+            <div><label>Ana dal fakültesi</label><input type="text" name="main_faculty" value="@s.S("main_faculty")" maxlength="150"></div>
+            <div class="full"><label>Ana dal bölümü</label><input type="text" name="main_department" value="@s.S("main_department")" maxlength="150"></div>
+          </div>
+          <p class="hint">Öğrenci numarası ve program türü (ÇAP/YDP) benzersiz kimlik olduğu için buradan değiştirilemez.</p>
+          <button class="btn" type="submit">Kaydet</button>
+        </form>
+      </div>
+    </div>
+    }
+  </div>
+</div>

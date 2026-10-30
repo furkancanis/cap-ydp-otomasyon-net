@@ -1,0 +1,34 @@
+@{
+    var rows = (List<Row>)ViewBag.Rows;
+    var total = (long)ViewBag.Total;
+    var pageNo = (int)ViewBag.Page;
+    var per = (int)ViewBag.Per;
+    var q = (string)ViewBag.Q;
+    var act = (string)ViewBag.Act;
+    var from = (string)ViewBag.From;
+    var to = (string)ViewBag.To;
+    var pages = Math.Max(1, (int)Math.Ceiling(total / (double)per));
+}
+<div class="page-title"><div><h1>İşlem Kaydı (Denetim)</h1><div class="sub">Sistemde yapılan her işlem: kim, ne zaman, neyi, eski ve yeni değeriyle. Kayıtlar veritabanı düzeyinde değiştirilemez ve silinemez.</div></div></div>
+<div class="card"><div class="bd">
+  <form method="get" action="/koordinator/islem-kaydi" class="form-row">
+    <div><label>Kullanıcı / öğrenci</label><input type="search" name="q" value="@q"></div>
+    <div><label>İşlem</label><select name="islem">@H.Options(Audit.ActionLabels, act, true)</select></div>
+    <div><label>Başlangıç</label><input type="date" name="bas" value="@from"></div>
+    <div><label>Bitiş</label><input type="date" name="bit" value="@to"></div>
+    <div class="w-auto"><button class="btn" type="submit">Filtrele</button></div>
+  </form>
+</div></div>
+<div class="card">
+  <div class="hd"><h3>@total kayıt</h3>
+  @if (pages > 1)
+  {
+    <div class="actions">
+      @if (pageNo > 1) {<a class="btn sm out" href="@H.Url("/koordinator/islem-kaydi", ("q", q), ("islem", act), ("bas", from), ("bit", to), ("sayfa", pageNo - 1))">← Önceki</a>}
+      <span class="small">Sayfa @pageNo / @pages</span>
+      @if (pageNo < pages) {<a class="btn sm out" href="@H.Url("/koordinator/islem-kaydi", ("q", q), ("islem", act), ("bas", from), ("bit", to), ("sayfa", pageNo + 1))">Sonraki →</a>}
+    </div>
+  }
+  </div>
+  <div class="bd flush">@await Html.PartialAsync("~/Views/Partials/_AuditTable.cshtml", new AuditTableModel(rows, true))</div>
+</div>

@@ -1,0 +1,25 @@
+@{
+    var c = (Row)ViewBag.Course;
+    var logs = (List<Row>)ViewBag.Logs;
+}
+<div class="page-title"><div><h1>Ders Düzenle — @c.S("code")</h1><div class="sub">Pasife alınan ders yeni seçimlerde görünmez; mevcut kayıtlar ve notlar etkilenmez.</div></div>
+<a class="btn out" href="/koordinator/katalog">← Kataloğa dön</a></div>
+<div class="card narrow"><div class="bd">
+  <form method="post" action="/koordinator/katalog/@c.L("id")">@H.Raw(H.CsrfField(Ctx))
+    <div class="form-grid">
+      <div><label>Ders kodu</label><input type="text" name="code" value="@c.S("code")" required maxlength="20"></div>
+      <div><label>AKTS</label><input type="text" name="ects" value="@H.Ects(c.Dec("ects"))" required></div>
+      <div class="full"><label>Ders adı</label><input type="text" name="name" value="@c.S("name")" required maxlength="200"></div>
+      <div><label>Ulusal kredi</label><input type="text" name="credit" value="@H.Ects(c.Dec("credit"))"></div>
+      <div><label>Yarıyıl</label><input type="number" name="semester" value="@c.S("semester")" min="1" max="12"></div>
+      <div><label>Kategori</label><select name="category">@H.Options(L.Category, c.S("category"))</select></div>
+      <div><label>Kapsam</label><select name="program_scope">@H.Options(L.Scope, c.S("program_scope"))</select></div>
+      <div class="full"><label>Açıklama</label><input type="text" name="description" value="@c.S("description")" maxlength="500"></div>
+      <div class="full"><label class="check"><input type="checkbox" name="in_cap_protocol" value="1" checked="@c.B("in_cap_protocol")"> Varsayılan ÇAP protokol şablonunda</label></div>
+      <div class="full"><label class="check"><input type="checkbox" name="is_active" value="1" checked="@c.B("is_active")"> Aktif (seçilebilir)</label></div>
+      <div class="full"><label>Değişiklik gerekçesi</label><input type="text" name="reason" maxlength="500"></div>
+    </div>
+    <button class="btn mt" type="submit">Kaydet</button>
+  </form>
+</div></div>
+<div class="card"><div class="hd"><h3>Bu dersin değişiklik geçmişi</h3></div><div class="bd flush">@await Html.PartialAsync("~/Views/Partials/_AuditTable.cshtml", new AuditTableModel(logs))</div></div>

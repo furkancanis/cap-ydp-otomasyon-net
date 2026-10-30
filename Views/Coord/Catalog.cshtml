@@ -1,0 +1,56 @@
+@{
+    var rows = (List<Row>)ViewBag.Rows;
+    var q = (string)ViewBag.Q;
+    var importErrors = (List<string>?)ViewBag.ImportErrors;
+}
+<div class="page-title"><div><h1>Ders Kataloğu</h1><div class="sub">Öğrenciler dersleri yalnızca bu katalogdan seçebilir; serbest metinle ders girilemez.</div></div></div>
+@if (importErrors != null && importErrors.Count > 0)
+{
+  <div class="alert error">@foreach (var e in importErrors) {<div>@e</div>}</div>
+}
+@if (Ctx.IsCoordinator)
+{
+<div class="grid2">
+<div class="card"><div class="hd"><h3>Yeni ders ekle</h3></div><div class="bd">
+  <form method="post" action="/koordinator/katalog">@H.Raw(H.CsrfField(Ctx))
+    <div class="form-grid">
+      <div><label>Ders kodu *</label><input type="text" name="code" required maxlength="20" pattern="[A-Za-z0-9\-]{2,20}"></div>
+      <div class="span2"><label>Ders adı *</label><input type="text" name="name" required maxlength="200"></div>
+      <div><label>AKTS *</label><input type="text" name="ects" required inputmode="decimal"></div>
+      <div><label>Ulusal kredi</label><input type="text" name="credit" value="0" inputmode="decimal"></div>
+      <div><label>Yarıyıl</label><input type="number" name="semester" min="1" max="12"></div>
+      <div><label>Kategori</label><select name="category">@H.Options(L.Category, "zorunlu")</select></div>
+      <div><label>Kapsam</label><select name="program_scope">@H.Options(L.Scope, "HER_IKISI")</select></div>
+      <div class="full"><label class="check"><input type="checkbox" name="in_cap_protocol" value="1"> Varsayılan ÇAP protokol şablonunda</label></div>
+      <div class="full"><label>Açıklama</label><input type="text" name="description" maxlength="500"></div>
+    </div>
+    <button class="btn mt" type="submit">Ekle</button>
+  </form>
+</div></div>
+<div class="card"><div class="hd"><h3>CSV ile içe aktar</h3></div><div class="bd">
+  <p class="small">Başlık: <code>code;name;credit;ects;semester;category;program_scope;in_cap_protocol</code><br>
+  category: zorunlu | teknik_secmeli | staj | diger · program_scope: HER_IKISI | CAP | YDP · Mevcut kodlar güncellenir.</p>
+  <form method="post" action="/koordinator/katalog/ice-aktar" enctype="multipart/form-data">@H.Raw(H.CsrfField(Ctx))
+    <input type="file" name="csv" accept=".csv,text/csv" required>
+    <button class="btn mt" type="submit">İçe aktar</button>
+  </form>
+</div></div>
+</div>
+}
+<div class="card">
+  <div class="hd"><h3>Dersler (@rows.Count)</h3>
+    <form method="get" action="/koordinator/katalog" class="row-flex"><input type="search" name="q" value="@q" placeholder="Kod veya ad ara"><button class="btn sm" type="submit">Ara</button></form></div>
+  <div class="bd flush"><div class="table-wrap"><table class="tbl">
+    <thead><tr><th>Kod</th><th>Ders adı</th><th class="num">AKTS</th><th class="num">Kredi</th><th>Yy</th><th>Kategori</th><th>Kapsam</th><th>Protokol</th><th>Durum</th><th class="num">Kullanan</th><th></th></tr></thead>
+    @foreach (var c in rows)
+    {
+      <tr class="@(c.B("is_active") ? "" : "dim")">
+        <td><code>@c.S("code")</code></td><td>@c.S("name")@if (!c.IsNull("description")) {<br><small>@c.S("description")</small>}</td>
+        <td class="num">@H.Ects(c.Dec("ects"))</td><td class="num">@(c.Dec("credit") > 0 ? H.Ects(c.Dec("credit")) : "—")</td><td>@c.S("semester")</td>
+        <td class="small">@L.Get(L.Category, c.S("category"))</td><td class="small">@L.Get(L.Scope, c.S("program_scope"))</td>
+        <td>@(c.B("in_cap_protocol") ? H.Badge("ok", "Protokolde") : H.Raw(""))</td><td>@(c.B("is_active") ? H.Badge("aktif") : H.Badge("iptal", "Pasif"))</td><td class="num">@c.L("used")</td>
+        <td>@if (Ctx.IsCoordinator) {<a class="btn sm out" href="/koordinator/katalog/@c.L("id")">Düzenle</a>}</td>
+      </tr>
+    }
+  </table></div></div>
+</div>

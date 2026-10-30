@@ -1,0 +1,23 @@
+@{
+    var rows = (List<Row>)ViewBag.Rows;
+}
+<div class="page-title"><div><h1>Akademik Dönemler</h1><div class="sub">Aktif dönem, öğrencinin ders girişi ve kural kontrolleri (ör. üst üste ders almama) için esas alınır.</div></div></div>
+@if (Ctx.IsCoordinator)
+{
+<div class="card"><div class="bd">
+  <form method="post" action="/koordinator/donemler" class="form-row">@H.Raw(H.CsrfField(Ctx))
+    <div><label>Akademik yıl</label><input type="text" name="academic_year" required pattern="\d{4}-\d{4}" placeholder="2027-2028"></div>
+    <div><label>Dönem</label><select name="season"><option>Güz</option><option>Bahar</option><option>Yaz</option></select></div>
+    <div class="w-auto"><button class="btn" type="submit">Dönem ekle</button></div>
+  </form>
+</div></div>
+}
+<div class="card"><div class="bd flush"><table class="tbl">
+  <thead><tr><th>Dönem</th><th class="num">Onaylı ders kaydı</th><th>Durum</th><th></th></tr></thead>
+  @foreach (var t in rows)
+  {
+    <tr><td>@Terms.Label(t)</td><td class="num">@t.L("n")</td>
+    <td>@if (t.B("is_current")) {@H.Badge("aktif", "Aktif dönem")}</td>
+    <td>@if (Ctx.IsCoordinator && !t.B("is_current")) {@H.PostBtn(Ctx, "Aktif dönem yap", "/koordinator/donemler/" + t.L("id") + "/aktif", null, "out", Terms.Label(t) + " aktif dönem yapılsın mı?")}</td></tr>
+  }
+</table></div></div>

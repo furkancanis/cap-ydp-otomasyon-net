@@ -1,0 +1,100 @@
+@{
+    var terms = (List<Row>)ViewBag.TermsList;
+    var termId = (long)ViewBag.TermId;
+    var rows = (List<Row>)ViewBag.Rows;
+    var transcript = (Row?)ViewBag.Transcript;
+    var history = (List<Row>)ViewBag.History;
+    var scale = (List<string>)ViewBag.Scale;
+    var maxMb = Settings.Get(Ctx, "max_upload_mb", "5");
+}
+<div class="page-title"><div><h1>Dönem Sonu Not Girişi</h1><div class="sub">Dönem sonunda, bölümümüzde aldığınız derslerin ÇAP/YDP not belgesini (transkript) yükleyip notlarınızı girin. Transkript yüklenmeden notlar onaya gönderilemez.</div></div></div>
+
+@if (terms.Count == 0)
+{
+  <div class="card"><div class="empty">Not girişi bekleyen onaylı dersiniz yok.</div></div>
+}
+else
+{
+<div class="card"><div class="bd">
+  <form method="get" action="/ogrenci/notlar" class="form-row">
+    <div><label>Dönem</label><select name="donem">@H.TermOptions(terms, termId)</select></div>
+    <div class="w-auto"><button class="btn out" type="submit">Seç</button></div>
+  </form>
+</div></div>
+
+<div class="grid2">
+  <div class="card">
+    <div class="hd"><h3>Adım 1 — Transkript</h3>@(transcript != null ? H.Badge(transcript.S("state")) : H.Badge("kritik", "Yüklenmedi"))</div>
+    <div class="bd">
+      @if (transcript != null)
+      {
+        <p>Yüklenen belge: @H.DocLink(transcript.L("id"), transcript.S("title")) <small>(@H.Dt(transcript.Dt("created_at")))</small></p>
+        <p class="small muted">Gerekirse yeni sürüm yükleyebilirsiniz; eski sürüm arşivde kalır.</p>
+      }
+      <form method="post" action="/ogrenci/belgeler" enctype="multipart/form-data">@H.Raw(H.CsrfField(Ctx))
+        <input type="hidden" name="doc_type" value="cap_ydp_transkript"><input type="hidden" name="term_id" value="@termId"><input type="hidden" name="ret" value="notlar">
+        @if (transcript != null)
+        {
+          <input type="hidden" name="supersedes_id" value="@transcript.L("id")">
+        }
+        <label>ÇAP/YDP not belgesi (PDF/JPG/PNG, en fazla @maxMb MB)</label>
+        <input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png" data-max-mb="@maxMb">
+        <button class="btn mt" type="submit">@(transcript != null ? "Yeni sürüm yükle" : "Transkripti yükle")</button>
+      </form>
+    </div>
+  </div>
+  <div class="card">
+    <div class="hd"><h3>Adım 2 — Notları gir</h3></div>
+    <div class="bd">
+      @if (rows.Count == 0)
+      {
+        <p class="muted">Bu dönem için not girilecek ders yok.</p>
+      }
+      else
+      {
+      <form method="post" action="/ogrenci/notlar">@H.Raw(H.CsrfField(Ctx))<input type="hidden" name="term_id" value="@termId">
+        <table class="tbl">
+          <thead><tr><th>Ders</th><th>Harf notu</th></tr></thead>
+          @foreach (var r in rows)
+          {
+          <tr><td><code>@r.S("code")</code> @r.S("name")@if (!r.IsNull("last_reject")) {<br><small class="muted">Önceki giriş reddedildi: @r.S("last_reject")</small>}</td>
+            <td>
+              @if (!r.IsNull("pending_grade"))
+              {
+                @H.Badge("onay_bekliyor", r.S("pending_grade") + " — onay bekliyor")
+              }
+              else
+              {
+                <select name="@("grade[" + r.L("id") + "]")" aria-label="@(r.S("code") + " notu")"><option value="">—</option>@foreach (var g in scale) {<option>@g</option>}</select>
+              }
+            </td></tr>
+          }
+        </table>
+        <button class="btn mt" type="submit" disabled="@(transcript == null)">Notları onaya gönder</button>
+        @if (transcript == null)
+        {
+          <p class="hint">Önce bu dönemin transkriptini yükleyin.</p>
+        }
+      </form>
+      }
+    </div>
+  </div>
+</div>
+}
+
+<div class="card"><div class="hd"><h3>Not girişlerim</h3></div><div class="bd flush">
+@if (history.Count == 0)
+{
+  <div class="empty">Henüz not girişi yok.</div>
+}
+else
+{
+<table class="tbl"><thead><tr><th>Dönem</th><th>Ders</th><th>Not</th><th>Durum</th><th>Tarih</th></tr></thead>
+@foreach (var h in history)
+{
+  <tr><td class="nowrap">@h.S("academic_year") @h.S("season")</td><td><code>@h.S("code")</code> @h.S("name")</td><td><strong>@h.S("letter_grade")</strong></td>
+  <td>@H.Badge(h.S("state"))@if (!h.IsNull("reject_reason")) {<br><small>@h.S("reject_reason")</small>}</td><td class="small nowrap">@H.Dt(h.Dt("created_at"))</td></tr>
+}
+</table>
+}
+</div></div>

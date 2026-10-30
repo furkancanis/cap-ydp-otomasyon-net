@@ -1,0 +1,98 @@
+@{
+    var counts = (Dictionary<string, Dictionary<string, long>>)ViewBag.Counts;
+    var pending = (Dictionary<string, long>)ViewBag.Pending;
+    var alerts = (List<(Row Student, List<RuleItem> Items)>)ViewBag.Alerts;
+    var unread = (List<Row>)ViewBag.Unread;
+    var recent = (List<Row>)ViewBag.Recent;
+    var cur = Terms.Current(Ctx);
+    long Tot(string t) => counts[t].Values.Sum();
+    long Active(string t) => counts[t].TryGetValue("aktif", out var n) ? n : 0;
+    var pendingTotal = pending.Values.Sum();
+}
+<div class="page-title">
+  <div><h1>Koordinatör Paneli</h1><div class="sub">Aktif dönem: <strong>@Terms.Label(cur)</strong></div></div>
+  <div class="actions">
+    <a class="btn" href="/koordinator/ogrenci/yeni">+ Öğrenci Ekle</a>
+    @H.PostBtn(Ctx, "Tüm öğrencileri kurallara göre kontrol et", "/koordinator/kurallar/toplu-kontrol", null, "out", "Tüm aktif öğrenciler için kural kontrolü çalıştırılıp kaydedilecek. Devam edilsin mi?")
+  </div>
+</div>
+
+<div class="stats">
+  <a class="stat" href="/koordinator/ogrenciler?tur=CAP"><div class="v">@Active("CAP")</div><div class="l">Aktif ÇAP öğrencisi (toplam @Tot("CAP"))</div></a>
+  <a class="stat" href="/koordinator/ogrenciler?tur=YDP"><div class="v">@Active("YDP")</div><div class="l">Aktif YDP öğrencisi (toplam @Tot("YDP"))</div></a>
+  <a class="@(pendingTotal > 0 ? "stat warn" : "stat ok")" href="/koordinator/onay"><div class="v">@pendingTotal</div><div class="l">Onay bekleyen işlem</div></a>
+  <a class="@(alerts.Count > 0 ? "stat bad" : "stat ok")" href="#uyarilar"><div class="v">@alerts.Count</div><div class="l">Uyarı / kritik durumdaki öğrenci</div></a>
+  <div class="stat"><div class="v">@unread.Sum(m => m.L("n"))</div><div class="l">Okunmamış öğrenci mesajı</div></div>
+</div>
+
+@await Html.PartialAsync("~/Views/Partials/_Quick.cshtml")
+
+<div class="grid2">
+  <div class="card">
+    <div class="hd"><h3>Onay bekleyenler</h3><a class="btn sm out" href="/koordinator/onay">Tümünü gör</a></div>
+    <div class="bd flush"><table class="tbl">
+      <tr><td>Ders listesi (protokol) talepleri</td><td class="num">@pending["plan"]</td></tr>
+      <tr><td>Dönem ders kayıtları</td><td class="num">@pending["enrollments"]</td></tr>
+      <tr><td>Dönem sonu not girişleri</td><td class="num">@pending["grades"]</td></tr>
+      <tr><td>Belgeler</td><td class="num">@pending["documents"]</td></tr>
+      <tr><td><a href="/koordinator/ders-talepleri">Katalog dışı ders talepleri</a></td><td class="num">@pending["course_requests"]</td></tr>
+    </table></div>
+  </div>
+  <div class="card">
+    <div class="hd"><h3>Okunmamış mesajlar</h3></div>
+    <div class="bd flush">
+      @if (unread.Count == 0)
+      {
+        <div class="empty">Okunmamış mesaj yok.</div>
+      }
+      else
+      {
+        <table class="tbl">
+        @foreach (var m in unread)
+        {
+          <tr><td><a href="/koordinator/ogrenci/@(m.L("id"))?tab=mesajlar">@m.S("full_name")</a> <small>@m.S("student_no")</small></td>
+              <td class="num"><span class="badge b-red">@m.L("n") yeni</span></td><td class="nowrap small">@H.Dt(m.Dt("last_at"))</td></tr>
+        }
+        </table>
+      }
+    </div>
+  </div>
+</div>
+
+<div class="card" id="uyarilar">
+  <div class="hd"><h3>Kural uyarıları (son kontrol sonuçlarına göre)</h3><span class="small muted">Uyarı karar değildir; karar koordinatöre aittir.</span></div>
+  <div class="bd flush">
+    @if (alerts.Count == 0)
+    {
+      <div class="empty">Uyarı bulunan öğrenci yok.</div>
+    }
+    else
+    {
+    <div class="table-wrap"><table class="tbl">
+      <thead><tr><th>Öğrenci</th><th>Program</th><th>Seviye</th><th>Uyarılar</th><th>Kontrol</th></tr></thead>
+      <tbody>
+      @foreach (var a in alerts)
+      {
+        <tr>
+          <td><a href="/koordinator/ogrenci/@a.Student.L("id")">@a.Student.S("full_name")</a><br><small>@a.Student.S("student_no")</small></td>
+          <td>@L.Get(L.ProgramShort, a.Student.S("program_type"))</td>
+          <td>@H.Badge(a.Student.S("summary_level"))</td>
+          <td class="small">
+            @foreach (var i in a.Items)
+            {
+              <div>@H.Badge(i.Level) @i.Title</div>
+            }
+          </td>
+          <td class="nowrap small">@H.Dt(a.Student.Dt("created_at"))</td>
+        </tr>
+      }
+      </tbody>
+    </table></div>
+    }
+  </div>
+</div>
+
+<div class="card">
+  <div class="hd"><h3>Son işlemler</h3><a class="btn sm out" href="/koordinator/islem-kaydi">İşlem kaydı</a></div>
+  <div class="bd flush">@await Html.PartialAsync("~/Views/Partials/_AuditTable.cshtml", new AuditTableModel(recent, true))</div>
+</div>

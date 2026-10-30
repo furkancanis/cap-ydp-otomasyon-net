@@ -1,0 +1,35 @@
+@{
+    var ro = (bool)ViewBag.Ro;
+    var subs = (List<Row>)ViewBag.Subs;
+}
+<div class="card">
+  <div class="hd"><h3>Dönem sonu not girişleri</h3><span class="small muted">Öğrencinin girdiği notu yüklediği ÇAP/YDP not belgesiyle karşılaştırarak onaylayın.</span></div>
+  <div class="bd flush">
+  @if (subs.Count == 0)
+  {
+    <div class="empty">Not girişi yok.</div>
+  }
+  else
+  {
+  <div class="table-wrap"><table class="tbl">
+    <thead><tr><th>Dönem</th><th>Ders</th><th>Deneme</th><th>Girilen not</th><th>Transkript</th><th>Durum</th><th>Tarih</th><th></th></tr></thead>
+    @foreach (var g in subs)
+    {
+      <tr class="@((g.S("state") is "iptal" or "reddedildi") ? "dim" : "")">
+        <td class="nowrap">@g.S("academic_year") @g.S("season")</td><td><code>@g.S("code")</code> @g.S("name")</td><td class="num">@g.I("attempt_no")</td>
+        <td><strong>@g.S("letter_grade")</strong></td>
+        <td>@H.DocLink(g.L("transcript_document_id"), g.S("doc_title")) @H.Badge(g.S("doc_state"))</td>
+        <td>@H.Badge(g.S("state"))@if (!g.IsNull("reject_reason")) {<br><small>@g.S("reject_reason")</small>}</td>
+        <td class="small nowrap">@H.Dt(g.Dt("created_at"))</td>
+        <td>
+          @if (!ro && g.S("state") == "onay_bekliyor")
+          {
+            <div class="actions">@H.PostBtn(Ctx, "Onayla", "/koordinator/not/" + g.L("id") + "/karar", H.KV("karar", "onay"), "ok")@H.ReasonPop(Ctx, "Reddet", "/koordinator/not/" + g.L("id") + "/karar", H.KV("karar", "ret"), "danger", "Reddet")</div>
+          }
+        </td>
+      </tr>
+    }
+  </table></div>
+  }
+  </div>
+</div>

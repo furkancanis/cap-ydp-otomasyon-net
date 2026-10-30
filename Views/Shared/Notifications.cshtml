@@ -1,0 +1,35 @@
+@{
+    var items = (List<Row>)ViewBag.Items;
+}
+<div class="page-title">
+  <h1>Bildirimler</h1>
+  <form method="post" action="/bildirimler/okundu">@H.Raw(H.CsrfField(Ctx))<button class="btn out sm" type="submit">Tümünü okundu işaretle</button></form>
+</div>
+<div class="card"><div class="bd flush">
+@if (items.Count == 0)
+{
+  <div class="empty">Bildiriminiz yok.</div>
+}
+else
+{
+<div class="table-wrap"><table class="tbl">
+  <thead><tr><th>Tarih</th><th>Bildirim</th><th></th></tr></thead>
+  <tbody>
+  @foreach (var n in items)
+  {
+    var read = !n.IsNull("read_at");
+    <tr class="@(read ? "dim" : "")">
+      <td class="nowrap">@H.Dt(n.Dt("created_at"))</td>
+      <td>@if (!read) {<span class="badge b-blue">Yeni</span> }@n.S("message")</td>
+      <td class="right">
+        @if (!n.IsNull("link"))
+        {
+          <form method="post" action="/bildirimler/okundu">@H.Raw(H.CsrfField(Ctx))<input type="hidden" name="go" value="@n.S("link")"><button class="btn sm out" type="submit">Git</button></form>
+        }
+      </td>
+    </tr>
+  }
+  </tbody>
+</table></div>
+}
+</div></div>
